@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const bodyLimit = 16 << 10
@@ -61,6 +63,9 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func decode(data []byte, v any) error {
+	if !utf8.Valid(data) {
+		return invalid("UTF-8で送信してください")
+	}
 	// Reject null fields as well as unknown fields: pointer omission must not hide invalid input.
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
@@ -158,7 +163,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, &apiError{413, "BODY_TOO_LARGE", "本文は16KiB以内にしてください"})
 		return
 	}
-	if r.Method != "DELETE" && !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if r.Method != "DELETE" && mediaType != "application/json" {
 		writeError(w, &apiError{400, "INVALID_CONTENT_TYPE", "Content-Typeはapplication/jsonにしてください"})
 		return
 	}

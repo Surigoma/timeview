@@ -1,0 +1,71 @@
+version: '3'
+
+vars:
+  NPM: '{{if eq OS "windows"}}npm.cmd{{else}}npm{{end}}'
+
+tasks:
+  default:
+    cmds: [task --list]
+  setup:
+    desc: Install locked development dependencies
+    cmds:
+      - go mod download
+      - '{{.NPM}} --prefix web ci'
+  dev:backend:
+    desc: Start Go API on 127.0.0.1:8080
+    cmds:
+      - task: web:build
+      - go run -buildvcs=false . {{.CLI_ARGS}}
+  dev:frontend:
+    desc: Start Vite (API and SSE proxy to Go)
+    dir: web
+    cmds: ['{{.NPM}} run dev -- {{.CLI_ARGS}}']
+  fmt:
+    desc: Format Go and frontend source
+    cmds:
+      - gofmt -w main.go internal web/embed.go
+      - '{{.NPM}} --prefix web run fmt'
+  lint:
+    desc: Check Go, TypeScript and ESLint
+    cmds:
+      - task: web:build
+      - go vet . ./internal/... ./web
+      - '{{.NPM}} --prefix web run lint'
+  test:
+    desc: Run backend and frontend tests
+    cmds:
+      - task: web:build
+      - go test . ./internal/... ./web
+      - '{{.NPM}} --prefix web test'
+  web:build:
+    internal: true
+    dir: web
+    cmds: ['{{.NPM}} run build']
+  build:
+    desc: Build a standalone executable for this OS/CPU
+    cmds:
+      - task: web:build
+      - task: binary
+        vars: { TARGET_OS: '{{OS}}', TARGET_ARCH: '{{ARCH}}' }
+  binary:
+    internal: true
+    env:
+      CGO_ENABLED: '0'
+      GOOS: '{{.TARGET_OS}}'
+      GOARCH: '{{.TARGET_ARCH}}'
+    cmds:
+      - go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview{{if eq .TARGET_OS "windows"}}.exe{{end}} .
+  release:
+    desc: Build Windows, macOS and Linux release executables (5 targets)
+    cmds:
+      - task: web:build
+      - task: binary
+        vars: { TARGET_OS: windows, TARGET_ARCH: amd64 }
+      - task: binary
+        vars: { TARGET_OS: darwin, TARGET_ARCH: amd64 }
+      - task: binary
+        vars: { TARGET_OS: darwin, TARGET_ARCH: arm64 }
+      - task: binary
+        vars: { TARGET_OS: linux, TARGET_ARCH: amd64 }
+      - task: binary
+        vars: { TARGET_OS: linux, TARGET_ARCH: arm64 }

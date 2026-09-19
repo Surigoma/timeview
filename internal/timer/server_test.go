@@ -1,13 +1,61 @@
 package timer
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+func TestSSEInitialStateAndBlackoutUpdate(t *testing.T) {
+	s := New()
+	host := httptest.NewServer(s)
+	defer host.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, _ := http.NewRequestWithContext(ctx, "GET", host.URL+"/api/v1/timer/events", nil)
+	response, err := http.DefaultClient.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatal("not SSE")
+	}
+	scanner := bufio.NewScanner(response.Body)
+	read := func() State {
+		t.Helper()
+		for scanner.Scan() {
+			if line := scanner.Text(); strings.HasPrefix(line, "data: ") {
+				var state State
+				if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &state); err != nil {
+					t.Fatal(err)
+				}
+				return state
+			}
+		}
+		t.Fatalf("stream closed: %v", scanner.Err())
+		return State{}
+	}
+	if !read().Blackout {
+		t.Fatal("startup must be black")
+	}
+	updated := stateOf(t, request(s, "PUT", "/timer/blackout", `{"enabled":false}`, "reveal", ""))
+	for {
+		next := read()
+		if next.Version >= updated.Version {
+			if next.Blackout {
+				t.Fatal("blackout update missing")
+			}
+			break
+		}
+	}
+}
 
 func request(s *Server, method, path, body, key, etag string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, "/api/v1"+path, strings.NewReader(body))
