@@ -1,0 +1,49 @@
+# TimeView 動作確認結果
+
+- 確認日: 2026-09-19
+- 対象: 初期実装
+- 開発環境: Windows amd64、Go 1.25.3、Node.js 24.16.0、npm 11.13.0、Task 3.45.4
+
+## 自動確認
+
+| 確認 | 結果 |
+| --- | --- |
+| `task test` | 成功。Goのタイマー・暗転・再送抑止・入力検証・同時更新・再起動検出・SSEテスト、フロントの時間表示・警告・Keypad判定・要求IDテストが成功 |
+| `task lint` | 成功。Go vet、TypeScript型検査、ESLintが成功 |
+| `task release` | 成功。Windows amd64、macOS amd64／arm64、Linux amd64／arm64の5成果物を生成 |
+| OpenAPI | `docs/openapi.json`をJSONとして読み込み、OpenAPI 3.1.0と主要パスの存在を確認 |
+
+## Windowsでの手動確認
+
+ビルド済みWindows実行ファイルを`127.0.0.1:8080`で起動し、実ブラウザで次を確認した。
+
+- 起動時は10分、待機、暗転ONとなる。
+- 操作画面から暗転解除、開始、一時停止、+1分を操作できる。
+- カンペを送信すると操作プレビューと別タブの演台画面へ同期する。
+- 暗転すると演台画面が黒一色になり、文字・通知・操作部品が表示されない。
+- 暗転中も計測状態を維持し、解除すると最新状態を表示する。
+- Keypadを有効にし、テンキー`+`で60秒加算、`Ctrl`+テンキー`+`で暗転解除だけが実行される。
+- 定型文を設定すると操作画面の即時送信ボタンへ反映される。
+- 設定画面に、警告、表示モード、色、点滅、Keypad割り当て、HTTP API情報が表示される。
+
+## 生成した配布対象
+
+| 対象 | 出力 |
+| --- | --- |
+| Windows amd64 | `dist/windows-amd64/timeview.exe` |
+| macOS amd64 | `dist/darwin-amd64/timeview` |
+| macOS arm64 | `dist/darwin-arm64/timeview` |
+| Linux amd64 | `dist/linux-amd64/timeview` |
+| Linux arm64 | `dist/linux-arm64/timeview` |
+
+`dist/`は生成物のためGit管理外。必要な環境で`task release`を実行して再生成する。
+
+## 未確認項目
+
+- macOS／Linux実機での起動、ブラウザ表示、Keypad入力。クロスコンパイル成功のみ確認済み。
+- Windows以外のブラウザ、およびWindows上の物理USBテンキー。今回のKeypad確認はブラウザへ送ったテンキーイベントによる。
+- 分離LAN上の別PC間通信、ファイアウォール設定、50接続時の負荷。
+- 8時間連続運用、複数表示端末間200ms以内、操作反映p95 300ms以内、1時間の経過誤差1秒以内という性能目標。
+- OS通知、ブラウザUI、ディスプレイやプロジェクター本体の黒レベル。TimeViewが暗転する範囲は演台ページの描画領域のみ。
+
+上映で使用する前に、対象OS、実際のKeypad、会場LAN、表示機器を使ったリハーサルを行う。

@@ -1,0 +1,1147 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TimeView API",
+    "version": "0.1.0",
+    "description": "分離LAN向け認証なしHTTP API。メモリのみ。POST/PUT/PATCHはapplication/json、本文16KiB以内。変更APIはIPごと10件/秒・バースト20、GETはIPごと30件/秒。"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8080/api/v1"
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "起動済み",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "ok"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer": {
+      "get": {
+        "operationId": "getTimer",
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateSettings",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [],
+                "properties": {
+                  "durationSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400,
+                    "description": "idleのみ変更可能"
+                  },
+                  "warning1Seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400
+                  },
+                  "warning2Seconds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400
+                  },
+                  "displayMode": {
+                    "type": "string",
+                    "enum": [
+                      "timer",
+                      "timer_and_message",
+                      "message"
+                    ]
+                  },
+                  "flash": {
+                    "type": "boolean"
+                  },
+                  "colors": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "normal",
+                      "warning1",
+                      "warning2",
+                      "overtime"
+                    ],
+                    "properties": {
+                      "normal": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      },
+                      "warning1": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      },
+                      "warning2": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      },
+                      "overtime": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer/commands": {
+      "post": {
+        "operationId": "executeCommand",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "command"
+                    ],
+                    "properties": {
+                      "command": {
+                        "type": "string",
+                        "enum": [
+                          "start",
+                          "pause",
+                          "reset"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "command",
+                      "deltaSeconds"
+                    ],
+                    "properties": {
+                      "command": {
+                        "type": "string",
+                        "const": "adjust"
+                      },
+                      "deltaSeconds": {
+                        "type": "integer",
+                        "minimum": -3600,
+                        "maximum": 3600,
+                        "not": {
+                          "const": 0
+                        },
+                        "description": "Idempotency-Key必須。変更後の残り時間は±24時間以内。"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer/blackout": {
+      "put": {
+        "operationId": "setBlackout",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "trueで暗転、falseで解除。計測に影響しない。"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer/message": {
+      "put": {
+        "operationId": "setMessage",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "非空は既定で表示、空文字は消去・非表示。"
+                  },
+                  "visible": {
+                    "type": "boolean",
+                    "description": "本文保持で表示切替。textと併用可能だが空textは非表示優先。"
+                  }
+                },
+                "minProperties": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clearMessage",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer/presets": {
+      "get": {
+        "operationId": "getPresets",
+        "responses": {
+          "200": {
+            "description": "定型文一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "presets"
+                  ],
+                  "properties": {
+                    "presets": {
+                      "type": "array",
+                      "maxItems": 9,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "replacePresets",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "presets"
+                ],
+                "properties": {
+                  "presets": {
+                    "type": "array",
+                    "maxItems": 9,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 500
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer/events": {
+      "get": {
+        "operationId": "streamTimer",
+        "responses": {
+          "200": {
+            "description": "SSE。接続直後・毎秒・変更時にevent: state、data: TimerのJSONを送信。最大50接続。履歴再生なし。",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Timer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "instanceId",
+          "version",
+          "state",
+          "durationSeconds",
+          "remainingMs",
+          "serverTimeMs",
+          "warning1Seconds",
+          "warning2Seconds",
+          "message",
+          "displayMode",
+          "blackout",
+          "flash",
+          "colors"
+        ],
+        "properties": {
+          "instanceId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "running",
+              "paused"
+            ]
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "remainingMs": {
+            "type": "integer"
+          },
+          "serverTimeMs": {
+            "type": "integer"
+          },
+          "warning1Seconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warning2Seconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "message": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text",
+              "visible"
+            ],
+            "properties": {
+              "text": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            }
+          },
+          "displayMode": {
+            "type": "string",
+            "enum": [
+              "timer",
+              "timer_and_message",
+              "message"
+            ]
+          },
+          "blackout": {
+            "type": "boolean",
+            "default": true
+          },
+          "flash": {
+            "type": "boolean",
+            "default": false
+          },
+          "colors": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "normal",
+              "warning1",
+              "warning2",
+              "overtime"
+            ],
+            "properties": {
+              "normal": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "warning1": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "warning2": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "overtime": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
