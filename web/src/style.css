@@ -491,14 +491,15 @@ footer span {
   position: relative;
   width: 100vw;
   height: 100dvh;
-  background: #000;
-  color: var(--timer-color, #fff);
+  background: var(--stage-background, #4b5263);
+  color: var(--stage-foreground, #fff);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4vh 4vw;
+  padding: 4vh 4vw 9vh;
   overflow: hidden;
+  transition: background-color 180ms linear;
 }
 .stage.preview {
   width: 100%;
@@ -526,11 +527,6 @@ footer span {
   line-height: 1.15;
   white-space: nowrap;
 }
-.stage-status {
-  font-size: 2.5cqw;
-  letter-spacing: 0.12em;
-  margin-top: 1cqw;
-}
 .stage-message {
   width: 100%;
   max-height: 36%;
@@ -540,23 +536,45 @@ footer span {
   overflow-wrap: anywhere;
   text-align: center;
   line-height: 1.45;
-  color: #fff;
+  color: inherit;
   margin-top: 3cqw;
 }
 .stage.message-only .stage-message {
-  max-height: 90%;
+  max-height: 84%;
   margin: 0;
+}
+.elapsed-gauge {
+  position: absolute;
+  right: 4vw;
+  bottom: 3vh;
+  left: 4vw;
+  height: clamp(8px, 1.1cqw, 18px);
+  overflow: hidden;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+.elapsed-gauge span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: currentColor;
+}
+.stage.preview .elapsed-gauge {
+  right: 3%;
+  bottom: 4%;
+  left: 3%;
+  height: clamp(4px, 0.7cqw, 9px);
 }
 .stage-offline {
   position: absolute;
-  bottom: 2%;
+  top: 2%;
   right: 2%;
   font-size: 1.6cqw;
   color: #bd9662;
 }
 .fullscreen {
   position: absolute;
-  bottom: 15px;
+  top: 15px;
   left: 15px;
   font-size: 12px;
   opacity: 0;
@@ -574,6 +592,9 @@ footer span {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .stage {
+    transition: none;
+  }
   .pulse {
     animation: none;
   }

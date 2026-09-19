@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
-import { defaultBindings, formatTime, keyLabel, matches, phase } from "./timer";
+import {
+  defaultBindings,
+  elapsedPercent,
+  foregroundColor,
+  formatTime,
+  keyLabel,
+  matches,
+  phase,
+} from "./timer";
 import type { Binding, TimerState } from "./timer";
 import { useTimer } from "./useTimer";
 
@@ -59,11 +67,17 @@ function Stage({
     onOverflow,
   ]);
   const p = phase(state, remaining);
+  const elapsed = elapsedPercent(state.durationSeconds, remaining);
   return (
     <div
       ref={container}
       className={`stage ${preview ? "preview" : ""} ${state.blackout ? "blackout" : ""} ${state.displayMode === "message" ? "message-only" : ""}`}
-      style={{ "--timer-color": p.color } as CSSProperties}
+      style={
+        {
+          "--stage-background": p.color,
+          "--stage-foreground": foregroundColor(p.color),
+        } as CSSProperties
+      }
     >
       {!state.blackout && (
         <>
@@ -77,12 +91,6 @@ function Stage({
               >
                 {formatTime(remaining)}
               </div>
-              <div className="stage-status">
-                {state.state === "paused" && p.label !== "一時停止"
-                  ? "一時停止 · "
-                  : ""}
-                {p.label}
-              </div>
             </div>
           )}
           {state.displayMode !== "timer" && state.message.visible && (
@@ -93,6 +101,16 @@ function Stage({
           {!connected && (
             <span className="stage-offline">接続待ち · 推定表示</span>
           )}
+          <div
+            className="elapsed-gauge"
+            role="progressbar"
+            aria-label="経過時間"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(elapsed)}
+          >
+            <span style={{ width: `${elapsed}%` }} />
+          </div>
           {!preview && (
             <button
               className="fullscreen"

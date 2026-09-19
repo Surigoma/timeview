@@ -44,6 +44,26 @@ export function phase(s: TimerState, remaining: number) {
   };
 }
 
+export function elapsedPercent(durationSeconds: number, remainingMs: number) {
+  if (durationSeconds <= 0) return 0;
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      ((durationSeconds * 1000 - remainingMs) / (durationSeconds * 1000)) * 100,
+    ),
+  );
+}
+
+export function foregroundColor(background: string) {
+  const value = background.match(/^#([0-9a-f]{6})$/i)?.[1];
+  if (!value) return "#ffffff";
+  const [r, g, b] = [0, 2, 4].map((i) =>
+    Number.parseInt(value.slice(i, i + 2), 16),
+  );
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#101218" : "#ffffff";
+}
+
 export type Binding = {
   action: string;
   label: string;

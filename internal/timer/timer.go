@@ -50,7 +50,7 @@ func newModel(now time.Time) model {
 	return model{State: State{
 		InstanceID: hex.EncodeToString(id), Status: "idle", Duration: 600, Remaining: 600000,
 		Warning1: 180, Warning2: 60, Blackout: true, DisplayMode: "timer_and_message",
-		Colors: Colors{"#f4f5f7", "#f2cc60", "#ff9854", "#ff6069"},
+		Colors: Colors{"#4b5263", "#f2cc60", "#ff9854", "#ff6069"},
 	}, anchor: now, presets: []string{}}
 }
 

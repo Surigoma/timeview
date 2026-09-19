@@ -4,7 +4,9 @@ import {
   formatTime,
   matches,
   defaultBindings,
+  elapsedPercent,
   phase,
+  foregroundColor,
   requestID,
 } from "./timer.ts";
 import type { TimerState } from "./timer.ts";
@@ -53,6 +55,18 @@ test("warning precedence and disabled zero thresholds", () => {
     phase({ ...s, warning1Seconds: 0, warning2Seconds: 0 }, 1).color,
     "n",
   );
+});
+test("elapsed gauge clamps adjustments and overtime", () => {
+  assert.equal(elapsedPercent(600, 600000), 0);
+  assert.equal(elapsedPercent(600, 300000), 50);
+  assert.equal(elapsedPercent(600, 0), 100);
+  assert.equal(elapsedPercent(600, -1000), 100);
+  assert.equal(elapsedPercent(600, 660000), 0);
+});
+test("stage foreground contrasts with its background", () => {
+  assert.equal(foregroundColor("#f2cc60"), "#101218");
+  assert.equal(foregroundColor("#4b5263"), "#ffffff");
+  assert.equal(foregroundColor("invalid"), "#ffffff");
 });
 test("request IDs work without secure-context randomUUID", () => {
   const a = requestID();
