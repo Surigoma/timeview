@@ -597,10 +597,14 @@ export default function App() {
             <section className="panel">
               <div className="panel-title">
                 <h2>外部連携</h2>
-                <span className="badge">HTTP</span>
+                <span className="badge">
+                  {timer.state.browserOnly ? "参照のみ" : "HTTP"}
+                </span>
               </div>
               <p className="hint">
-                認証不要。同じ分離ネットワークから操作できます。
+                {timer.state.browserOnly
+                  ? "ブラウザ操作限定中。外部連携では状態取得とSSEだけを利用できます。"
+                  : "認証不要。同じ分離ネットワークから操作できます。"}
               </p>
               <label>
                 演台URL
@@ -626,9 +630,9 @@ export default function App() {
               </label>
               <p aria-live="polite">{toast}</p>
               <pre>
-                {
-                  'PUT /api/v1/timer/blackout\nContent-Type: application/json\n\n{"enabled": true}'
-                }
+                {timer.state.browserOnly
+                  ? "GET /api/v1/timer\nGET /api/v1/timer/events\n\n変更API: 403 BROWSER_ONLY"
+                  : 'PUT /api/v1/timer/blackout\nContent-Type: application/json\n\n{"enabled": true}'}
               </pre>
               <p className="hint">
                 設定・定型文・キー割り当てはJSONへ保存します。再起動時も暗転はONです。
@@ -737,6 +741,7 @@ function SettingsPanel({ timer }: { timer: Connection }) {
       warning2Seconds: s.warning2Seconds,
       displayMode: s.displayMode,
       flash: s.flash,
+      browserOnly: s.browserOnly,
       colors: s.colors,
     };
     const ok = await timer.send(
@@ -855,6 +860,17 @@ function SettingsPanel({ timer }: { timer: Connection }) {
             />
             時間超過時にゆっくり点滅
           </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={s.browserOnly}
+              onChange={(e) => update({ browserOnly: e.target.checked })}
+            />
+            ブラウザからの操作だけを許可
+          </label>
+          <p className="hint">
+            有効時も外部APIからの状態取得は可能ですが、変更操作は拒否します。
+          </p>
           <div>
             <button type="submit" className="primary">
               設定を反映

@@ -58,10 +58,22 @@ func TestSSEInitialStateAndBlackoutUpdate(t *testing.T) {
 }
 
 func request(s *Server, method, path, body, key, etag string) *httptest.ResponseRecorder {
+	return requestAs(s, method, path, body, key, etag, false)
+}
+
+func browserRequest(s *Server, method, path, body, key, etag string) *httptest.ResponseRecorder {
+	return requestAs(s, method, path, body, key, etag, true)
+}
+
+func requestAs(s *Server, method, path, body, key, etag string, browser bool) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, "/api/v1"+path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Idempotency-Key", key)
 	r.Header.Set("If-Match", etag)
+	if browser {
+		r.Header.Set("X-Timeview-Client", "browser")
+		r.Header.Set("Sec-Fetch-Site", "same-origin")
+	}
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, r)
 	return w
@@ -142,6 +154,47 @@ func TestReplayAtomicityAndValidation(t *testing.T) {
 	}
 	if w := request(s, "POST", "/timer/commands", body, "", ""); w.Code != 428 {
 		t.Fatal(w.Code)
+	}
+}
+
+func TestBrowserOnlyRejectsExternalMutations(t *testing.T) {
+	s := New()
+	before := stateOf(t, request(s, "GET", "/timer", "", "", ""))
+	enabled := stateOf(t, browserRequest(s, "PATCH", "/timer", `{"browserOnly":true}`, "enable-browser-only", before.etag()))
+	if !enabled.BrowserOnly {
+		t.Fatal("browser-only mode was not enabled")
+	}
+	if read := stateOf(t, request(s, "GET", "/timer", "", "", "")); !read.BrowserOnly {
+		t.Fatal("read API was blocked while browser-only mode was enabled")
+	}
+
+	external := request(s, "POST", "/timer/commands", `{"command":"start"}`, "external-start", "")
+	if external.Code != http.StatusForbidden || !strings.Contains(external.Body.String(), "BROWSER_ONLY") {
+		t.Fatalf("external mutation was not rejected: %d %s", external.Code, external.Body.String())
+	}
+	if s.model.Status != "idle" {
+		t.Fatal("rejected mutation changed timer state")
+	}
+
+	missingMetadata := httptest.NewRequest("POST", "/api/v1/timer/commands", strings.NewReader(`{"command":"start"}`))
+	missingMetadata.Header.Set("Content-Type", "application/json")
+	missingMetadata.Header.Set("X-Timeview-Client", "browser")
+	response := httptest.NewRecorder()
+	s.ServeHTTP(response, missingMetadata)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("client header without browser metadata was accepted: %d", response.Code)
+	}
+
+	running := stateOf(t, browserRequest(s, "POST", "/timer/commands", `{"command":"start"}`, "browser-start", ""))
+	if running.Status != "running" {
+		t.Fatal("browser mutation was rejected")
+	}
+	disabled := stateOf(t, browserRequest(s, "PATCH", "/timer", `{"browserOnly":false}`, "disable-browser-only", running.etag()))
+	if disabled.BrowserOnly {
+		t.Fatal("browser-only mode was not disabled")
+	}
+	if paused := stateOf(t, request(s, "POST", "/timer/commands", `{"command":"pause"}`, "external-pause", "")); paused.Status != "paused" {
+		t.Fatal("external mutation remained blocked after disabling")
 	}
 }
 

@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TimeView API",
-    "version": "0.2.0",
-    "description": "分離LAN向け認証なしHTTP API。タイマー実行状態と再送記録はメモリ、設定はJSONファイルへ保存。POST/PUT/PATCHはapplication/json、本文16KiB以内。変更APIはIPごと10件/秒・バースト20、GETはIPごと30件/秒。"
+    "version": "0.3.0",
+    "description": "分離LAN向け認証なしHTTP API。タイマー実行状態と再送記録はメモリ、設定はJSONファイルへ保存。POST/PUT/PATCHはapplication/json、本文16KiB以内。変更APIはIPごと10件/秒・バースト20、GETはIPごと30件/秒。browserOnly有効時はGET/SSE以外にX-Timeview-Client: browserとSec-Fetch-Site: same-originが必要。"
   },
   "servers": [
     {
@@ -37,7 +37,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -103,7 +103,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -212,6 +212,10 @@
                   "flash": {
                     "type": "boolean"
                   },
+                  "browserOnly": {
+                    "type": "boolean",
+                    "description": "trueなら変更操作を同一オリジンのTimeViewブラウザ画面に限定"
+                  },
                   "colors": {
                     "type": "object",
                     "additionalProperties": false,
@@ -265,7 +269,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -410,7 +414,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -524,7 +528,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -642,7 +646,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -734,7 +738,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -806,7 +810,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -922,7 +926,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -980,7 +984,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -1052,7 +1056,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -1168,7 +1172,7 @@
             }
           },
           "default": {
-            "description": "400 JSON/Content-Type不正、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
             "headers": {
               "Retry-After": {
                 "description": "429時の待機秒数",
@@ -1230,6 +1234,7 @@
           "displayMode",
           "blackout",
           "flash",
+          "browserOnly",
           "colors"
         ],
         "properties": {
@@ -1299,6 +1304,11 @@
           "flash": {
             "type": "boolean",
             "default": false
+          },
+          "browserOnly": {
+            "type": "boolean",
+            "default": false,
+            "description": "変更操作を同一オリジンのTimeViewブラウザ画面に限定する運用ガード。認証ではない"
           },
           "colors": {
             "type": "object",

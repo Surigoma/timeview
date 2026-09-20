@@ -11,6 +11,7 @@ export type TimerState = {
   displayMode: "timer" | "timer_and_message" | "message";
   blackout: boolean;
   flash: boolean;
+  browserOnly: boolean;
   colors: {
     normal: string;
     warning1: string;

@@ -225,9 +225,16 @@ func (s *Server) mutation(path string) gin.HandlerFunc {
 	}
 }
 
+func isBrowserMutation(c *gin.Context) bool {
+	return c.GetHeader("X-Timeview-Client") == "browser" && c.GetHeader("Sec-Fetch-Site") == "same-origin"
+}
+
 func (s *Server) mutate(c *gin.Context, path string, data []byte) ([]byte, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.model.BrowserOnly && !isBrowserMutation(c) {
+		return nil, "", &apiError{403, "BROWSER_ONLY", "現在はブラウザからの操作だけを受け付けます"}
+	}
 	now := s.now()
 	if boot := c.GetHeader("X-Timeview-Instance"); boot != "" && boot != s.model.InstanceID {
 		return nil, "", conflict("サーバーが再起動しました。状態を再取得してください")

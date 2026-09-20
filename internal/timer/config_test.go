@@ -28,7 +28,8 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 	stateOf(t, request(server, "PUT", "/timer/bindings", string(body), "bindings", ""))
 	stateOf(t, request(server, "PUT", "/timer/blackout", `{"enabled":false}`, "reveal", ""))
 	stateOf(t, request(server, "PUT", "/timer/message", `{"text":"一時メッセージ"}`, "message", ""))
-	stateOf(t, request(server, "POST", "/timer/commands", `{"command":"start"}`, "start", ""))
+	running := stateOf(t, request(server, "POST", "/timer/commands", `{"command":"start"}`, "start", ""))
+	stateOf(t, browserRequest(server, "PATCH", "/timer", `{"browserOnly":true}`, "browser-only", running.etag()))
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -48,7 +49,7 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := restarted.model
-	if got.Duration != 900 || got.Remaining != 900000 || got.Warning1 != 300 || got.Warning2 != 90 || got.DisplayMode != "timer" || !got.Flash {
+	if got.Duration != 900 || got.Remaining != 900000 || got.Warning1 != 300 || got.Warning2 != 90 || got.DisplayMode != "timer" || !got.Flash || !got.BrowserOnly {
 		t.Fatalf("timer config was not restored: %+v", got.State)
 	}
 	if got.Status != "idle" || !got.Blackout || got.Message != (Message{}) {

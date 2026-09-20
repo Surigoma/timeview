@@ -38,6 +38,7 @@ type timerConfig struct {
 	Warning2    int64  `json:"warning2Seconds" validate:"gte=0,lte=86400"`
 	DisplayMode string `json:"displayMode" validate:"oneof=timer timer_and_message message"`
 	Flash       bool   `json:"flash"`
+	BrowserOnly bool   `json:"browserOnly"`
 	Colors      Colors `json:"colors" validate:"required"`
 }
 
@@ -111,7 +112,7 @@ func configFromModel(m model) fileConfig {
 		Version: configVersion,
 		Timer: timerConfig{
 			Duration: m.Duration, Warning1: m.Warning1, Warning2: m.Warning2,
-			DisplayMode: m.DisplayMode, Flash: m.Flash, Colors: m.Colors,
+			DisplayMode: m.DisplayMode, Flash: m.Flash, BrowserOnly: m.BrowserOnly, Colors: m.Colors,
 		},
 		Presets:        append([]string{}, m.presets...),
 		KeypadBindings: append([]KeyBinding{}, m.bindings...),
@@ -158,7 +159,7 @@ func loadModel(path string, now time.Time) (model, error) {
 	settings := settings{
 		Duration: &config.Timer.Duration, Warning1: &config.Timer.Warning1,
 		Warning2: &config.Timer.Warning2, DisplayMode: &config.Timer.DisplayMode,
-		Flash: &config.Timer.Flash, Colors: &config.Timer.Colors,
+		Flash: &config.Timer.Flash, BrowserOnly: &config.Timer.BrowserOnly, Colors: &config.Timer.Colors,
 	}
 	if err := m.configure(settings); err != nil {
 		return model{}, fmt.Errorf("設定ファイルのタイマー設定が不正です: %w", err)

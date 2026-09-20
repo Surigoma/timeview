@@ -117,6 +117,7 @@ export function useTimer() {
           "Content-Type": "application/json",
           "Idempotency-Key": requestID(),
           "X-Timeview-Instance": boot,
+          "X-Timeview-Client": "browser",
         };
         if (etag) headers["If-Match"] = etag;
         const response = await fetch(`/api/v1/timer${path}`, {

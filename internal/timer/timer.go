@@ -33,6 +33,7 @@ type State struct {
 	DisplayMode string  `json:"displayMode"`
 	Blackout    bool    `json:"blackout"`
 	Flash       bool    `json:"flash"`
+	BrowserOnly bool    `json:"browserOnly"`
 	Colors      Colors  `json:"colors"`
 }
 
@@ -117,6 +118,7 @@ type settings struct {
 	Warning2    *int64  `json:"warning2Seconds,omitempty"`
 	DisplayMode *string `json:"displayMode,omitempty"`
 	Flash       *bool   `json:"flash,omitempty"`
+	BrowserOnly *bool   `json:"browserOnly,omitempty"`
 	Colors      *Colors `json:"colors,omitempty"`
 }
 
@@ -149,6 +151,9 @@ func (m *model) configure(p settings) error {
 	}
 	if p.Flash != nil {
 		m.Flash = *p.Flash
+	}
+	if p.BrowserOnly != nil {
+		m.BrowserOnly = *p.BrowserOnly
 	}
 	if p.Colors != nil {
 		for _, c := range []string{p.Colors.Normal, p.Colors.Warning1, p.Colors.Warning2, p.Colors.Overtime} {
