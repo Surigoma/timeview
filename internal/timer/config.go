@@ -3,19 +3,29 @@ package timer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/go-viper/mapstructure/v2"
+	kjson "github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/providers/rawbytes"
+	"github.com/knadh/koanf/providers/structs"
+	"github.com/knadh/koanf/v2"
 )
 
 const configVersion = 1
 
+var configValidator = validator.New(validator.WithRequiredStructEnabled())
+
 type KeyBinding struct {
-	Action string `json:"action"`
-	Code   string `json:"code"`
+	Action string `json:"action" validate:"required,oneof=start pause add subtract reset hide show clear blackout reveal preset0 preset1 preset2 preset3 preset4 preset5 preset6 preset7 preset8"`
+	Code   string `json:"code" validate:"required,max=64"`
 	Ctrl   bool   `json:"ctrl"`
 	Shift  bool   `json:"shift"`
 	Alt    bool   `json:"alt"`
@@ -23,19 +33,19 @@ type KeyBinding struct {
 }
 
 type timerConfig struct {
-	Duration    int64  `json:"durationSeconds"`
-	Warning1    int64  `json:"warning1Seconds"`
-	Warning2    int64  `json:"warning2Seconds"`
-	DisplayMode string `json:"displayMode"`
+	Duration    int64  `json:"durationSeconds" validate:"gte=1,lte=86400"`
+	Warning1    int64  `json:"warning1Seconds" validate:"gte=0,lte=86400"`
+	Warning2    int64  `json:"warning2Seconds" validate:"gte=0,lte=86400"`
+	DisplayMode string `json:"displayMode" validate:"oneof=timer timer_and_message message"`
 	Flash       bool   `json:"flash"`
-	Colors      Colors `json:"colors"`
+	Colors      Colors `json:"colors" validate:"required"`
 }
 
 type fileConfig struct {
-	Version        int          `json:"version"`
-	Timer          timerConfig  `json:"timer"`
-	Presets        []string     `json:"presets"`
-	KeypadBindings []KeyBinding `json:"keypadBindings"`
+	Version        int          `json:"version" validate:"eq=1"`
+	Timer          timerConfig  `json:"timer" validate:"required"`
+	Presets        []string     `json:"presets" validate:"max=9,dive,max=500"`
+	KeypadBindings []KeyBinding `json:"keypadBindings" validate:"len=19,dive"`
 }
 
 func defaultBindings() []KeyBinding {
@@ -58,7 +68,7 @@ func defaultBindings() []KeyBinding {
 }
 
 func validatePresets(presets []string) error {
-	if len(presets) > 9 {
+	if err := configValidator.Var(presets, "max=9,dive,max=500"); err != nil {
 		return invalid("定型文は最大9件です")
 	}
 	for _, text := range presets {
@@ -70,20 +80,12 @@ func validatePresets(presets []string) error {
 }
 
 func validateBindings(bindings []KeyBinding) error {
-	defaults := defaultBindings()
-	if len(bindings) != len(defaults) {
-		return invalid("キー割り当ての件数が不正です")
-	}
-	actions := make(map[string]struct{}, len(defaults))
-	for _, binding := range defaults {
-		actions[binding.Action] = struct{}{}
+	if err := configValidator.Var(bindings, "len=19,dive"); err != nil {
+		return invalid("キー割り当ての内容が不正です")
 	}
 	seenActions := make(map[string]struct{}, len(bindings))
 	seenKeys := make(map[KeyBinding]struct{}, len(bindings))
 	for _, binding := range bindings {
-		if _, ok := actions[binding.Action]; !ok {
-			return invalid("不明なキー操作が含まれています")
-		}
 		if _, ok := seenActions[binding.Action]; ok {
 			return invalid("キー操作が重複しています")
 		}
@@ -119,7 +121,7 @@ func configFromModel(m model) fileConfig {
 func loadModel(path string, now time.Time) (model, error) {
 	m := newModel(now)
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return m, saveConfig(path, m)
 	}
 	if err != nil {
@@ -128,17 +130,30 @@ func loadModel(path string, now time.Time) (model, error) {
 	if !utf8.Valid(data) {
 		return model{}, fmt.Errorf("設定ファイルはUTF-8で保存してください")
 	}
-	var config fileConfig
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&config); err != nil {
+	configStore := koanf.New(".")
+	if err := configStore.Load(rawbytes.Provider(data), kjson.Parser()); err != nil {
 		return model{}, fmt.Errorf("設定ファイルのJSONが不正です: %w", err)
 	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return model{}, fmt.Errorf("設定ファイルにはJSONオブジェクトを1つだけ指定してください")
+	var config fileConfig
+	if err := configStore.UnmarshalWithConf("", &config, koanf.UnmarshalConf{
+		Tag: "json",
+		DecoderConfig: &mapstructure.DecoderConfig{
+			ErrorUnused:      true,
+			WeaklyTypedInput: false,
+			ZeroFields:       true,
+		},
+	}); err != nil {
+		message := "設定ファイルのJSONが不正です"
+		if strings.Contains(err.Error(), "invalid keys") {
+			message = "設定ファイルにunknown fieldがあります"
+		}
+		return model{}, fmt.Errorf("%s: %w", message, err)
 	}
 	if config.Version != configVersion {
 		return model{}, fmt.Errorf("未対応の設定バージョンです: %d", config.Version)
+	}
+	if err := configValidator.Struct(config); err != nil {
+		return model{}, fmt.Errorf("設定ファイルの値が不正です: %w", err)
 	}
 	settings := settings{
 		Duration: &config.Timer.Duration, Warning1: &config.Timer.Warning1,
@@ -160,11 +175,20 @@ func loadModel(path string, now time.Time) (model, error) {
 }
 
 func saveConfig(path string, m model) error {
-	data, err := json.MarshalIndent(configFromModel(m), "", "  ")
+	configStore := koanf.New(".")
+	if err := configStore.Load(structs.Provider(configFromModel(m), "json"), nil); err != nil {
+		return err
+	}
+	data, err := configStore.Marshal(kjson.Parser())
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
+	var formatted bytes.Buffer
+	if err := json.Indent(&formatted, data, "", "  "); err != nil {
+		return err
+	}
+	formatted.WriteByte('\n')
+	data = formatted.Bytes()
 	dir := filepath.Dir(path)
 	temporary, err := os.CreateTemp(dir, ".timeview-config-*")
 	if err != nil {

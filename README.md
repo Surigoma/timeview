@@ -33,7 +33,9 @@ JSONを手作業で編集する場合はTimeViewを終了してから変更し�
 
 ## 開発
 
-検証環境: Go 1.25.3、Node.js 24.16.0 / npm 11.13.0、Task 3.45.4（Taskfile v3）。依存はpackage-lock.jsonで固定しています。
+検証環境: Go 1.25.3、Node.js 24.16.0 / npm 11.13.0、Task 3.45.4（Taskfile v3）。Go依存は`go.mod`と`go.sum`、フロント依存は`package-lock.json`で固定しています。
+
+バックエンドはGin v1.11でHTTPルーティングとミドルウェア、Koanf v2でJSON設定、go-playground/validatorで構造体検証、`golang.org/x/time/rate`でAPI流量制限を実装しています。タイマー状態は引き続きメモリ内に保持し、CGOは使用しません。選定理由と適用範囲は[依存ライブラリの選定](docs/DEPENDENCIES.md)を参照してください。
 
 ```sh
 task setup

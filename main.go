@@ -10,7 +10,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"timeview/internal/timer"
 	"timeview/web"
@@ -32,30 +35,36 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	index, err := fs.ReadFile(assets, "index.html")
+	if err != nil {
+		log.Fatal("frontend assets are missing; run task build: ", err)
+	}
 	files := http.FileServer(http.FS(assets))
-	mux := http.NewServeMux()
-	mux.Handle("/api/", api)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" && r.Method != "HEAD" {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+	router := gin.New()
+	router.Use(gin.Logger(), gin.Recovery())
+	_ = router.SetTrustedProxies(nil)
+	api.Register(router.Group("/api/v1"))
+	serveIndex := func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Cache-Control", "no-store")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", index)
+	}
+	for _, path := range []string{"/", "/control", "/display", "/settings"} {
+		router.Match([]string{http.MethodGet, http.MethodHead}, path, serveIndex)
+	}
+	router.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "APIが見つかりません"}})
 			return
 		}
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		switch r.URL.Path {
-		case "/", "/control", "/display", "/settings":
-			data, err := fs.ReadFile(assets, "index.html")
-			if err != nil {
-				http.Error(w, "Run task build first", 500)
-				return
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Header().Set("Cache-Control", "no-store")
-			_, _ = w.Write(data)
-		default:
-			files.ServeHTTP(w, r)
+		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+			c.Status(http.StatusMethodNotAllowed)
+			return
 		}
+		c.Header("X-Content-Type-Options", "nosniff")
+		files.ServeHTTP(c.Writer, c.Request)
 	})
-	server := &http.Server{Addr: *listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: *listen, Handler: router, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	go func() {

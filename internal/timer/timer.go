@@ -14,10 +14,10 @@ type Message struct {
 }
 
 type Colors struct {
-	Normal   string `json:"normal"`
-	Warning1 string `json:"warning1"`
-	Warning2 string `json:"warning2"`
-	Overtime string `json:"overtime"`
+	Normal   string `json:"normal" validate:"hexcolor"`
+	Warning1 string `json:"warning1" validate:"hexcolor"`
+	Warning2 string `json:"warning2" validate:"hexcolor"`
+	Overtime string `json:"overtime" validate:"hexcolor"`
 }
 
 type State struct {

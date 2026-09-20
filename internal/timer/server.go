@@ -8,17 +8,21 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mime"
 	"net"
 	"net/http"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"golang.org/x/time/rate"
 )
 
 const bodyLimit = 16 << 10
+
+var configureGin sync.Once
 
 type receipt struct {
 	hash    [32]byte
@@ -26,9 +30,11 @@ type receipt struct {
 	etag    string
 	expires time.Time
 }
-type bucket struct {
-	write, read float64
-	last        time.Time
+
+type clientLimit struct {
+	write *rate.Limiter
+	read  *rate.Limiter
+	last  time.Time
 }
 
 type Server struct {
@@ -37,190 +43,218 @@ type Server struct {
 	configPath string
 	receipts   map[string]receipt
 	clients    map[chan struct{}]struct{}
-	limits     map[string]*bucket
+	limits     map[string]*clientLimit
 	now        func() time.Time
+	handler    http.Handler
+	handlerOne sync.Once
+}
+
+func prepareGin() {
+	configureGin.Do(func() {
+		gin.SetMode(gin.ReleaseMode)
+		gin.EnableJsonDecoderDisallowUnknownFields()
+	})
 }
 
 func New() *Server {
-	return &Server{model: newModel(time.Now()), receipts: map[string]receipt{}, clients: map[chan struct{}]struct{}{}, limits: map[string]*bucket{}, now: time.Now}
+	prepareGin()
+	return &Server{model: newModel(time.Now()), receipts: map[string]receipt{}, clients: map[chan struct{}]struct{}{}, limits: map[string]*clientLimit{}, now: time.Now}
 }
 
 func NewWithConfig(path string) (*Server, error) {
+	prepareGin()
 	loaded, err := loadModel(path, time.Now())
 	if err != nil {
 		return nil, err
 	}
-	return &Server{model: loaded, configPath: path, receipts: map[string]receipt{}, clients: map[chan struct{}]struct{}{}, limits: map[string]*bucket{}, now: time.Now}, nil
+	return &Server{model: loaded, configPath: path, receipts: map[string]receipt{}, clients: map[chan struct{}]struct{}{}, limits: map[string]*clientLimit{}, now: time.Now}, nil
 }
 
-func writeError(w http.ResponseWriter, err error) {
-	var e *apiError
-	if !errors.As(err, &e) {
-		e = &apiError{500, "INTERNAL_ERROR", "内部エラーが発生しました"}
+// Register mounts the TimeView API under the supplied Gin router group.
+func (s *Server) Register(api *gin.RouterGroup) {
+	api.Use(s.apiHeaders(), s.rateLimit())
+	api.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
+	api.GET("/timer", s.getTimer)
+	api.GET("/timer/events", s.events)
+	api.GET("/timer/presets", s.getPresets)
+	api.GET("/timer/bindings", s.getBindings)
+	api.PATCH("/timer", s.mutation("/timer"))
+	api.POST("/timer/commands", s.mutation("/timer/commands"))
+	api.PUT("/timer/blackout", s.mutation("/timer/blackout"))
+	api.PUT("/timer/message", s.mutation("/timer/message"))
+	api.DELETE("/timer/message", s.mutation("/timer/message"))
+	api.PUT("/timer/presets", s.mutation("/timer/presets"))
+	api.PUT("/timer/bindings", s.mutation("/timer/bindings"))
+}
+
+// ServeHTTP keeps Server usable with httptest and as a standalone net/http handler.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.handlerOne.Do(func() {
+		router := gin.New()
+		router.Use(gin.Recovery())
+		_ = router.SetTrustedProxies(nil)
+		s.Register(router.Group("/api/v1"))
+		router.NoRoute(func(c *gin.Context) {
+			writeError(c, &apiError{404, "NOT_FOUND", "APIが見つかりません"})
+		})
+		s.handler = router
+	})
+	s.handler.ServeHTTP(w, r)
+}
+
+func (s *Server) apiHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Next()
 	}
-	if e.status == 429 {
-		w.Header().Set("Retry-After", "1")
+}
+
+func (s *Server) rateLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		host, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
+		if host == "" {
+			host = c.Request.RemoteAddr
+		}
+		now := s.now()
+		s.mu.Lock()
+		for key, limit := range s.limits {
+			if now.Sub(limit.last) > time.Minute {
+				delete(s.limits, key)
+			}
+		}
+		limit := s.limits[host]
+		if limit == nil && len(s.limits) < 1024 {
+			limit = &clientLimit{
+				write: rate.NewLimiter(rate.Limit(10), 20),
+				read:  rate.NewLimiter(rate.Limit(30), 30),
+				last:  now,
+			}
+			s.limits[host] = limit
+		}
+		allowed := limit != nil
+		if allowed {
+			limit.last = now
+			limiter := limit.write
+			if c.Request.Method == http.MethodGet {
+				limiter = limit.read
+			}
+			allowed = limiter.AllowN(now, 1)
+		}
+		s.mu.Unlock()
+		if !allowed {
+			writeError(c, &apiError{429, "RATE_LIMITED", "操作間隔を空けて再試行してください"})
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(e.status)
-	_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": e.code, "message": e.message}})
 }
 
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(v)
+func writeError(c *gin.Context, err error) {
+	var apiErr *apiError
+	if !errors.As(err, &apiErr) {
+		apiErr = &apiError{500, "INTERNAL_ERROR", "内部エラーが発生しました"}
+	}
+	if apiErr.status == http.StatusTooManyRequests {
+		c.Header("Retry-After", "1")
+	}
+	c.AbortWithStatusJSON(apiErr.status, gin.H{"error": gin.H{"code": apiErr.code, "message": apiErr.message}})
 }
 
-func decode(data []byte, v any) error {
+func decode(data []byte, value any) error {
 	if !utf8.Valid(data) {
 		return invalid("UTF-8で送信してください")
 	}
-	// Reject null fields as well as unknown fields: pointer omission must not hide invalid input.
 	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
+	if err := binding.JSON.BindBody(data, &fields); err != nil || fields == nil {
 		return &apiError{400, "INVALID_JSON", "JSONオブジェクトを指定してください"}
 	}
-	for _, value := range fields {
-		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+	for _, field := range fields {
+		if bytes.Equal(bytes.TrimSpace(field), []byte("null")) {
 			return invalid("nullは指定できません")
 		}
 	}
-	d := json.NewDecoder(bytes.NewReader(data))
-	d.DisallowUnknownFields()
-	if err := d.Decode(v); err != nil {
+	if err := binding.JSON.BindBody(data, value); err != nil {
 		return invalid("フィールド名または値の型が不正です")
 	}
 	return nil
 }
 
-func (s *Server) allow(r *http.Request) bool {
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	if host == "" {
-		host = r.RemoteAddr
-	}
-	now := s.now()
+func (s *Server) getTimer(c *gin.Context) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	for key, b := range s.limits {
-		if now.Sub(b.last) > time.Minute {
-			delete(s.limits, key)
-		}
-	}
-	b := s.limits[host]
-	if b == nil {
-		if len(s.limits) >= 1024 {
-			return false
-		}
-		b = &bucket{20, 30, now}
-		s.limits[host] = b
-	}
-	elapsed := now.Sub(b.last).Seconds()
-	b.write = min(20, b.write+elapsed*10)
-	b.read = min(30, b.read+elapsed*30)
-	b.last = now
-	tokens := &b.write
-	if r.Method == "GET" {
-		tokens = &b.read
-	}
-	if *tokens < 1 {
-		return false
-	}
-	*tokens--
-	return true
+	state := s.model.snapshot(s.now())
+	s.mu.Unlock()
+	c.Header("ETag", state.etag())
+	c.JSON(http.StatusOK, state)
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if !s.allow(r) {
-		writeError(w, &apiError{429, "RATE_LIMITED", "操作間隔を空けて再試行してください"})
-		return
-	}
-	p := strings.TrimPrefix(r.URL.Path, "/api/v1")
-	if p == "/health" && r.Method == "GET" {
-		writeJSON(w, map[string]string{"status": "ok"})
-		return
-	}
-	if p == "/timer/events" && r.Method == "GET" {
-		s.events(w, r)
-		return
-	}
-	if r.Method == "GET" {
-		s.mu.Lock()
-		state := s.model.snapshot(s.now())
-		presets := append([]string{}, s.model.presets...)
-		bindings := append([]KeyBinding{}, s.model.bindings...)
-		s.mu.Unlock()
-		switch p {
-		case "/timer":
-			w.Header().Set("ETag", state.etag())
-			writeJSON(w, state)
-		case "/timer/presets":
-			writeJSON(w, map[string]any{"presets": presets})
-		case "/timer/bindings":
-			writeJSON(w, map[string]any{"bindings": bindings})
-		default:
-			writeError(w, &apiError{404, "NOT_FOUND", "APIが見つかりません"})
-		}
-		return
-	}
-	switch r.Method + " " + p {
-	case "PATCH /timer", "POST /timer/commands", "PUT /timer/blackout", "PUT /timer/message", "DELETE /timer/message", "PUT /timer/presets", "PUT /timer/bindings":
-	default:
-		writeError(w, &apiError{404, "NOT_FOUND", "APIが見つかりません"})
-		return
-	}
-	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, bodyLimit))
-	if err != nil {
-		writeError(w, &apiError{413, "BODY_TOO_LARGE", "本文は16KiB以内にしてください"})
-		return
-	}
-	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if r.Method != "DELETE" && mediaType != "application/json" {
-		writeError(w, &apiError{400, "INVALID_CONTENT_TYPE", "Content-Typeはapplication/jsonにしてください"})
-		return
-	}
-	body, etag, err := s.mutate(r, p, data)
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-	log.Printf("%s %s ok", r.Method, p)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("ETag", etag)
-	_, _ = w.Write(body)
+func (s *Server) getPresets(c *gin.Context) {
+	s.mu.Lock()
+	presets := append([]string{}, s.model.presets...)
+	s.mu.Unlock()
+	c.JSON(http.StatusOK, gin.H{"presets": presets})
 }
 
-func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, string, error) {
+func (s *Server) getBindings(c *gin.Context) {
+	s.mu.Lock()
+	bindings := append([]KeyBinding{}, s.model.bindings...)
+	s.mu.Unlock()
+	c.JSON(http.StatusOK, gin.H{"bindings": bindings})
+}
+
+func (s *Server) mutation(path string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method != http.MethodDelete && c.ContentType() != "application/json" {
+			writeError(c, &apiError{400, "INVALID_CONTENT_TYPE", "Content-Typeはapplication/jsonにしてください"})
+			return
+		}
+		data, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, bodyLimit))
+		if err != nil {
+			writeError(c, &apiError{413, "BODY_TOO_LARGE", "本文は16KiB以内にしてください"})
+			return
+		}
+		body, etag, err := s.mutate(c, path, data)
+		if err != nil {
+			writeError(c, err)
+			return
+		}
+		log.Printf("%s %s ok", c.Request.Method, path)
+		c.Header("ETag", etag)
+		c.Data(http.StatusOK, "application/json; charset=utf-8", body)
+	}
+}
+
+func (s *Server) mutate(c *gin.Context, path string, data []byte) ([]byte, string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := s.now()
-	if boot := r.Header.Get("X-Timeview-Instance"); boot != "" && boot != s.model.InstanceID {
+	if boot := c.GetHeader("X-Timeview-Instance"); boot != "" && boot != s.model.InstanceID {
 		return nil, "", conflict("サーバーが再起動しました。状態を再取得してください")
 	}
-	key := r.Header.Get("Idempotency-Key")
+	key := c.GetHeader("Idempotency-Key")
 	if len(key) > 128 {
 		return nil, "", invalid("Idempotency-Keyは128文字以内です")
 	}
-	hash := sha256.Sum256([]byte(r.Method + " " + path + "\n" + string(data)))
-	for k, rec := range s.receipts {
-		if !now.Before(rec.expires) {
-			delete(s.receipts, k)
+	hash := sha256.Sum256([]byte(c.Request.Method + " " + path + "\n" + string(data)))
+	for receiptKey, saved := range s.receipts {
+		if !now.Before(saved.expires) {
+			delete(s.receipts, receiptKey)
 		}
 	}
 	if key != "" {
-		if rec, ok := s.receipts[key]; ok {
-			if rec.hash != hash {
+		if saved, ok := s.receipts[key]; ok {
+			if saved.hash != hash {
 				return nil, "", conflict("同じキーで異なる要求は送信できません")
 			}
-			return rec.body, rec.etag, nil
+			return saved.body, saved.etag, nil
 		}
 		if len(s.receipts) >= 10000 {
 			return nil, "", &apiError{429, "CAPACITY", "再送記録が上限に達しました"}
 		}
 	}
-	match := r.Header.Get("If-Match")
-	if r.Method == "PATCH" && match == "" {
+	match := c.GetHeader("If-Match")
+	if c.Request.Method == http.MethodPatch && match == "" {
 		return nil, "", &apiError{428, "PRECONDITION_REQUIRED", "If-Matchが必要です"}
 	}
 	if match != "" && match != s.model.State.etag() {
@@ -230,53 +264,53 @@ func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, stri
 	var err error
 	switch path {
 	case "/timer":
-		var p settings
-		if err = decode(data, &p); err == nil {
-			err = next.configure(p)
+		var payload settings
+		if err = decode(data, &payload); err == nil {
+			err = next.configure(payload)
 		}
 	case "/timer/commands":
-		var c command
-		if err = decode(data, &c); err == nil {
-			if c.Command == "adjust" && key == "" {
+		var payload command
+		if err = decode(data, &payload); err == nil {
+			if payload.Command == "adjust" && key == "" {
 				err = &apiError{428, "PRECONDITION_REQUIRED", "加減算にはIdempotency-Keyが必要です"}
 			} else {
-				err = next.command(c, now)
+				err = next.command(payload, now)
 			}
 		}
 	case "/timer/blackout":
-		var p struct {
+		var payload struct {
 			Enabled *bool `json:"enabled"`
 		}
-		if err = decode(data, &p); err == nil {
-			if p.Enabled == nil {
+		if err = decode(data, &payload); err == nil {
+			if payload.Enabled == nil {
 				err = invalid("enabledを指定してください")
 			} else {
-				next.Blackout = *p.Enabled
+				next.Blackout = *payload.Enabled
 			}
 		}
 	case "/timer/message":
-		if r.Method == "DELETE" {
+		if c.Request.Method == http.MethodDelete {
 			if len(bytes.TrimSpace(data)) > 0 {
 				err = invalid("消去では本文を指定しないでください")
 			} else {
 				next.Message = Message{}
 			}
 		} else {
-			var p struct {
+			var payload struct {
 				Text    *string `json:"text"`
 				Visible *bool   `json:"visible"`
 			}
-			if err = decode(data, &p); err == nil {
-				if p.Text == nil && p.Visible == nil {
+			if err = decode(data, &payload); err == nil {
+				if payload.Text == nil && payload.Visible == nil {
 					err = invalid("textまたはvisibleを指定してください")
 				} else {
-					if p.Text != nil {
-						next.Message = Message{*p.Text, *p.Text != ""}
+					if payload.Text != nil {
+						next.Message = Message{*payload.Text, *payload.Text != ""}
 					}
-					if p.Visible != nil {
-						next.Message.Visible = *p.Visible
+					if payload.Visible != nil {
+						next.Message.Visible = *payload.Visible
 					}
-					if p.Text != nil && *p.Text == "" {
+					if payload.Text != nil && *payload.Text == "" {
 						next.Message.Visible = false
 					}
 					err = validateText(next.Message.Text)
@@ -287,25 +321,25 @@ func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, stri
 			}
 		}
 	case "/timer/presets":
-		var p struct {
+		var payload struct {
 			Presets *[]string `json:"presets"`
 		}
-		if err = decode(data, &p); err == nil {
-			if p.Presets == nil {
+		if err = decode(data, &payload); err == nil {
+			if payload.Presets == nil {
 				err = invalid("presetsを指定してください")
-			} else if err = validatePresets(*p.Presets); err == nil {
-				next.presets = append([]string{}, (*p.Presets)...)
+			} else if err = validatePresets(*payload.Presets); err == nil {
+				next.presets = append([]string{}, (*payload.Presets)...)
 			}
 		}
 	case "/timer/bindings":
-		var p struct {
+		var payload struct {
 			Bindings *[]KeyBinding `json:"bindings"`
 		}
-		if err = decode(data, &p); err == nil {
-			if p.Bindings == nil {
+		if err = decode(data, &payload); err == nil {
+			if payload.Bindings == nil {
 				err = invalid("bindingsを指定してください")
-			} else if err = validateBindings(*p.Bindings); err == nil {
-				next.bindings = append([]KeyBinding{}, (*p.Bindings)...)
+			} else if err = validateBindings(*payload.Bindings); err == nil {
+				next.bindings = append([]KeyBinding{}, (*payload.Bindings)...)
 			}
 		}
 	}
@@ -335,9 +369,9 @@ func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, stri
 		s.receipts[key] = receipt{hash, body, state.etag(), now.Add(10 * time.Minute)}
 	}
 	if changed {
-		for ch := range s.clients {
+		for client := range s.clients {
 			select {
-			case ch <- struct{}{}:
+			case client <- struct{}{}:
 			default:
 			}
 		}
@@ -345,43 +379,43 @@ func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, stri
 	return body, state.etag(), nil
 }
 
-func (s *Server) events(w http.ResponseWriter, r *http.Request) {
-	if _, ok := w.(http.Flusher); !ok {
-		writeError(w, errors.New("streaming unsupported"))
-		return
-	}
-	ch := make(chan struct{}, 1)
+func (s *Server) events(c *gin.Context) {
+	client := make(chan struct{}, 1)
 	s.mu.Lock()
 	if len(s.clients) >= 50 {
 		s.mu.Unlock()
-		writeError(w, &apiError{429, "CAPACITY", "表示接続が上限に達しました"})
+		writeError(c, &apiError{429, "CAPACITY", "表示接続が上限に達しました"})
 		return
 	}
-	s.clients[ch] = struct{}{}
+	s.clients[client] = struct{}{}
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); delete(s.clients, ch); s.mu.Unlock() }()
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("X-Accel-Buffering", "no")
+	defer func() {
+		s.mu.Lock()
+		delete(s.clients, client)
+		s.mu.Unlock()
+	}()
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("X-Accel-Buffering", "no")
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	controller := http.NewResponseController(w)
-	for {
+	controller := http.NewResponseController(c.Writer)
+	first := true
+	c.Stream(func(w io.Writer) bool {
+		if !first {
+			select {
+			case <-c.Request.Context().Done():
+				return false
+			case <-ticker.C:
+			case <-client:
+			}
+		}
+		first = false
 		s.mu.Lock()
 		state := s.model.snapshot(s.now())
 		s.mu.Unlock()
-		data, _ := json.Marshal(state)
 		_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if _, err := fmt.Fprintf(w, "event: state\ndata: %s\n\n", data); err != nil {
-			return
-		}
-		if err := controller.Flush(); err != nil {
-			return
-		}
-		select {
-		case <-r.Context().Done():
-			return
-		case <-ticker.C:
-		case <-ch:
-		}
-	}
+		data, _ := json.Marshal(state)
+		_, err := fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
+		return err == nil
+	})
 }
