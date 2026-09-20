@@ -29,7 +29,7 @@ export function useTimer() {
     if (prev && prev.instanceId !== next.instanceId) {
       generation.current++;
       setNotice(
-        "サーバーが再起動し、初期化されました。設定を確認して暗転を解除してください。",
+        "サーバーが再起動しました。保存済み設定を読み込み、タイマーを待機・暗転へ戻しました。",
       );
     }
     current.current = next;

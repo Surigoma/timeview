@@ -8,6 +8,8 @@ import {
   phase,
   foregroundColor,
   requestID,
+  restoreBindings,
+  storeBindings,
 } from "./timer.ts";
 import type { TimerState } from "./timer.ts";
 
@@ -72,4 +74,12 @@ test("request IDs work without secure-context randomUUID", () => {
   const a = requestID();
   assert.match(a, /^[0-9a-f]{32}$/);
   assert.notEqual(a, requestID());
+});
+test("key bindings round-trip without persisting presentation labels", () => {
+  const changed = defaultBindings.map((binding) => ({ ...binding }));
+  changed[0].code = "KeyS";
+  const stored = storeBindings(changed);
+  assert.equal("label" in stored[0], false);
+  assert.equal(restoreBindings(stored)[0].code, "KeyS");
+  assert.equal(restoreBindings(stored)[0].label, "開始 / 再開");
 });

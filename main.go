@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
 	"timeview/internal/timer"
@@ -17,14 +18,23 @@ import (
 
 func main() {
 	listen := flag.String("listen", "127.0.0.1:8080", "HTTP listen address")
+	configPath := flag.String("config", "timeview-config.json", "JSON config file path")
 	flag.Parse()
+	absConfigPath, err := filepath.Abs(*configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	api, err := timer.NewWithConfig(absConfigPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	assets, err := fs.Sub(web.Assets, "dist")
 	if err != nil {
 		log.Fatal(err)
 	}
 	files := http.FileServer(http.FS(assets))
 	mux := http.NewServeMux()
-	mux.Handle("/api/", timer.New())
+	mux.Handle("/api/", api)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" && r.Method != "HEAD" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -55,7 +65,7 @@ func main() {
 		_ = server.Shutdown(c)
 		_ = server.Close()
 	}()
-	fmt.Printf("TimeView\nControl: http://%s/\nDisplay: http://%s/display\nState is in memory. Blackout is ON at startup.\n", *listen, *listen)
+	fmt.Printf("TimeView\nControl: http://%s/\nDisplay: http://%s/display\nConfig: %s\nTimer state is in memory. Blackout is ON at startup.\n", *listen, *listen, absConfigPath)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

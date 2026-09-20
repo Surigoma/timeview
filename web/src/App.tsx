@@ -8,6 +8,8 @@ import {
   keyLabel,
   matches,
   phase,
+  restoreBindings,
+  storeBindings,
 } from "./timer";
 import type { Binding, TimerState } from "./timer";
 import { useTimer } from "./useTimer";
@@ -145,22 +147,25 @@ export default function App() {
   const [record, setRecord] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const lastInput = useRef({ key: "", at: 0 });
-  const presetGeneration = useRef(0);
+  const configGeneration = useRef(0);
   const boot = timer.state?.instanceId;
   const version = timer.state?.version;
 
   useEffect(() => {
     if (display || !boot) return;
     let cancelled = false;
-    const sequence = ++presetGeneration.current;
-    fetch("/api/v1/timer/presets", { signal: AbortSignal.timeout(4000) })
-      .then((r) => {
-        if (!r.ok) throw Error();
-        return r.json();
-      })
-      .then((data) => {
-        if (!cancelled && sequence === presetGeneration.current)
-          setPresets(data.presets);
+    const sequence = ++configGeneration.current;
+    const load = async (path: string) => {
+      const response = await fetch(path, { signal: AbortSignal.timeout(4000) });
+      if (!response.ok) throw Error();
+      return response.json();
+    };
+    Promise.all([load("/api/v1/timer/presets"), load("/api/v1/timer/bindings")])
+      .then(([presetData, bindingData]) => {
+        if (!cancelled && sequence === configGeneration.current) {
+          setPresets(presetData.presets);
+          setBindings(restoreBindings(bindingData.bindings));
+        }
       })
       .catch(() => {});
     return () => {
@@ -217,11 +222,16 @@ export default function App() {
           timer.setError("このキーはすでに割り当てられています");
           return;
         }
-        setBindings(
-          bindings.map((other) => (other.action === record ? b : other)),
+        const next = bindings.map((other) =>
+          other.action === record ? b : other,
         );
         setRecord(null);
         timer.setError("");
+        void timer
+          .send("/bindings", { bindings: storeBindings(next) }, "PUT")
+          .then((ok) => {
+            if (ok) setBindings(next);
+          });
         return;
       }
       if (
@@ -341,7 +351,7 @@ export default function App() {
         >
           設定・外部連携
         </button>
-        <span>LOCAL / MEMORY ONLY</span>
+        <span>LOCAL / JSON CONFIG</span>
       </nav>
       <main>
         <div className="page-heading">
@@ -548,7 +558,16 @@ export default function App() {
                 <button
                   className="small"
                   onClick={() => {
-                    setBindings(defaultBindings.map((b) => ({ ...b })));
+                    const defaults = defaultBindings.map((b) => ({ ...b }));
+                    void timer
+                      .send(
+                        "/bindings",
+                        { bindings: storeBindings(defaults) },
+                        "PUT",
+                      )
+                      .then((ok) => {
+                        if (ok) setBindings(defaults);
+                      });
                     setRecord(null);
                   }}
                 >
@@ -556,7 +575,7 @@ export default function App() {
                 </button>
               </div>
               <p className="hint">
-                変更を押してキーを入力。Escでキャンセル。再読み込みで既定に戻ります。
+                変更を押してキーを入力。Escでキャンセル。変更はJSON設定へ保存します。
               </p>
               <div className="bindings">
                 {bindings.map((b) => (
@@ -612,14 +631,14 @@ export default function App() {
                 }
               </pre>
               <p className="hint">
-                設定・定型文はサーバー終了で消えます。再起動時は10分・待機・暗転で初期化します。
+                設定・定型文・キー割り当てはJSONへ保存します。再起動時も暗転はONです。
               </p>
             </section>
           </div>
         )}
       </main>
       <footer>
-        TIMEVIEW <span>HTTP · オフライン運用 / 設定はメモリ内のみ</span>
+        TIMEVIEW <span>HTTP · オフライン運用 / 設定はJSON保存</span>
       </footer>
     </div>
   );

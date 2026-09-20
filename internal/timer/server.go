@@ -32,16 +32,25 @@ type bucket struct {
 }
 
 type Server struct {
-	mu       sync.Mutex
-	model    model
-	receipts map[string]receipt
-	clients  map[chan struct{}]struct{}
-	limits   map[string]*bucket
-	now      func() time.Time
+	mu         sync.Mutex
+	model      model
+	configPath string
+	receipts   map[string]receipt
+	clients    map[chan struct{}]struct{}
+	limits     map[string]*bucket
+	now        func() time.Time
 }
 
 func New() *Server {
 	return &Server{model: newModel(time.Now()), receipts: map[string]receipt{}, clients: map[chan struct{}]struct{}{}, limits: map[string]*bucket{}, now: time.Now}
+}
+
+func NewWithConfig(path string) (*Server, error) {
+	loaded, err := loadModel(path, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	return &Server{model: loaded, configPath: path, receipts: map[string]receipt{}, clients: map[chan struct{}]struct{}{}, limits: map[string]*bucket{}, now: time.Now}, nil
 }
 
 func writeError(w http.ResponseWriter, err error) {
@@ -140,6 +149,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		state := s.model.snapshot(s.now())
 		presets := append([]string{}, s.model.presets...)
+		bindings := append([]KeyBinding{}, s.model.bindings...)
 		s.mu.Unlock()
 		switch p {
 		case "/timer":
@@ -147,13 +157,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, state)
 		case "/timer/presets":
 			writeJSON(w, map[string]any{"presets": presets})
+		case "/timer/bindings":
+			writeJSON(w, map[string]any{"bindings": bindings})
 		default:
 			writeError(w, &apiError{404, "NOT_FOUND", "APIが見つかりません"})
 		}
 		return
 	}
 	switch r.Method + " " + p {
-	case "PATCH /timer", "POST /timer/commands", "PUT /timer/blackout", "PUT /timer/message", "DELETE /timer/message", "PUT /timer/presets":
+	case "PATCH /timer", "POST /timer/commands", "PUT /timer/blackout", "PUT /timer/message", "DELETE /timer/message", "PUT /timer/presets", "PUT /timer/bindings":
 	default:
 		writeError(w, &apiError{404, "NOT_FOUND", "APIが見つかりません"})
 		return
@@ -279,17 +291,21 @@ func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, stri
 			Presets *[]string `json:"presets"`
 		}
 		if err = decode(data, &p); err == nil {
-			if p.Presets == nil || len(*p.Presets) > 9 {
-				err = invalid("定型文は最大9件です")
-			} else {
-				for _, text := range *p.Presets {
-					if err = validateText(text); err != nil {
-						break
-					}
-				}
-				if err == nil {
-					next.presets = append([]string{}, (*p.Presets)...)
-				}
+			if p.Presets == nil {
+				err = invalid("presetsを指定してください")
+			} else if err = validatePresets(*p.Presets); err == nil {
+				next.presets = append([]string{}, (*p.Presets)...)
+			}
+		}
+	case "/timer/bindings":
+		var p struct {
+			Bindings *[]KeyBinding `json:"bindings"`
+		}
+		if err = decode(data, &p); err == nil {
+			if p.Bindings == nil {
+				err = invalid("bindingsを指定してください")
+			} else if err = validateBindings(*p.Bindings); err == nil {
+				next.bindings = append([]KeyBinding{}, (*p.Bindings)...)
 			}
 		}
 	}
@@ -297,6 +313,12 @@ func (s *Server) mutate(r *http.Request, path string, data []byte) ([]byte, stri
 		return nil, "", err
 	}
 	changed := !reflect.DeepEqual(s.model, next)
+	if changed && s.configPath != "" && (path == "/timer" || path == "/timer/presets" || path == "/timer/bindings") {
+		if err := saveConfig(s.configPath, next); err != nil {
+			log.Printf("save config: %v", err)
+			return nil, "", &apiError{500, "CONFIG_SAVE_FAILED", "設定ファイルを保存できません"}
+		}
+	}
 	if changed {
 		next.Version++
 	}

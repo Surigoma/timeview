@@ -73,6 +73,7 @@ export type Binding = {
   alt: boolean;
   meta: boolean;
 };
+export type StoredBinding = Omit<Binding, "label">;
 const bind = (
   action: string,
   label: string,
@@ -102,6 +103,22 @@ export const defaultBindings: Binding[] = [
     bind(`preset${i}`, `定型文 ${i + 1}`, `Numpad${i + 1}`),
   ),
 ];
+export function storeBindings(bindings: Binding[]): StoredBinding[] {
+  return bindings.map((binding) => ({
+    action: binding.action,
+    code: binding.code,
+    ctrl: binding.ctrl,
+    shift: binding.shift,
+    alt: binding.alt,
+    meta: binding.meta,
+  }));
+}
+export function restoreBindings(bindings: StoredBinding[]): Binding[] {
+  return defaultBindings.map((fallback) => ({
+    ...fallback,
+    ...bindings.find((binding) => binding.action === fallback.action),
+  }));
+}
 export type KeyInput = {
   code: string;
   ctrlKey: boolean;

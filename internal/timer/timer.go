@@ -38,8 +38,9 @@ type State struct {
 
 type model struct {
 	State
-	anchor  time.Time
-	presets []string
+	anchor   time.Time
+	presets  []string
+	bindings []KeyBinding
 }
 
 func newModel(now time.Time) model {
@@ -51,7 +52,7 @@ func newModel(now time.Time) model {
 		InstanceID: hex.EncodeToString(id), Status: "idle", Duration: 600, Remaining: 600000,
 		Warning1: 180, Warning2: 60, Blackout: true, DisplayMode: "timer_and_message",
 		Colors: Colors{"#4b5263", "#f2cc60", "#ff9854", "#ff6069"},
-	}, anchor: now, presets: []string{}}
+	}, anchor: now, presets: []string{}, bindings: defaultBindings()}
 }
 
 func (m model) snapshot(now time.Time) State {
