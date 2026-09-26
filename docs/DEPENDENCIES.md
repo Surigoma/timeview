@@ -1,13 +1,13 @@
 # 依存ライブラリの選定
 
-2026年9月時点で公式ドキュメントとリリース情報を確認し、Go 1.25、CGO無効、Windows・macOS・Linuxという条件で選定した。
+2026年9月時点で公式ドキュメントとリリース情報を確認し、Go 1.27、CGO無効、Windows・macOS・Linuxという条件で選定した。
 
 | 用途 | 採用 | 理由 |
 | --- | --- | --- |
-| HTTP | Gin v1.11 | ルート、ミドルウェア、JSON応答・バインド、静的配信を一つの小さなAPIで扱える。v1.12はGo 1.26を要求するため、Go 1.25をサポートするv1.11を固定した |
+| HTTP | Gin v1.12 | ルート、ミドルウェア、JSON応答・バインド、静的配信を一つの小さなAPIで扱える |
 | 設定 | Koanf v2 | providerとparserを必要なものだけ組み合わせられ、JSONと構造体の相互変換を分離できる。Viperのリモート設定や監視等は今回不要 |
 | 検証 | go-playground/validator v10 | 構造体タグで範囲、列挙、件数、色形式をまとめて宣言でき、Ginの依存とも共通化できる |
-| 流量制限 | golang.org/x/time/rate v0.12 | Go公式の拡張パッケージにある並行安全なトークンバケット実装。Go 1.25互換の版を固定した |
+| 流量制限 | golang.org/x/time/rate v0.16 | Go公式の拡張パッケージにある並行安全なトークンバケット実装 |
 
 React側は固定3画面、単一タイマー、SSE接続一つという規模のため、React Routerや汎用状態管理ライブラリを追加しても既存コードは短くならない。Reactの状態とブラウザ標準のEventSourceを継続使用する。タイマーの楽観的同時実行制御やIdempotency-Keyは製品固有なので、汎用HTTPクライアントへ隠さず`useTimer`に集約する。
 
@@ -15,7 +15,6 @@ React側は固定3画面、単一タイマー、SSE接続一つという規模�
 
 ## 参照資料
 
-- [Gin v1.11.0 release announcement](https://gin-gonic.com/en/blog/news/gin-1-11-0-release-announcement/)
 - [Gin releases](https://github.com/gin-gonic/gin/releases)
 - [Koanf](https://github.com/knadh/koanf)
 - [go-playground/validator](https://github.com/go-playground/validator)
