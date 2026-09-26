@@ -40,3 +40,11 @@ go test -cover ./internal/timer
 ```
 
 Do not commit generated output from `dist/`, `web/dist/`, local configuration, logs, coverage profiles, or dependency directories.
+
+## Commits
+
+- Unless the user asks otherwise, create a commit after each logical change is complete and its relevant checks pass.
+- Keep unrelated fixes in separate commits. Include directly related tests and documentation in the same commit as the implementation.
+- Before committing, inspect the diff and stage only the files belonging to that change. Preserve unrelated user changes.
+- Use concise Conventional Commit messages such as `feat: ...`, `fix: ...`, `refactor: ...`, `test: ...`, or `docs: ...`.
+- Do not amend, squash, rewrite, or push commits unless the user explicitly requests it.
