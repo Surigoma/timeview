@@ -62,6 +62,7 @@ func TestMutationTransportValidation(t *testing.T) {
 		{"body limit", "application/json", bytes.Repeat([]byte(" "), bodyLimit+1), 413, "BODY_TOO_LARGE"},
 		{"invalid utf8", "application/json", []byte{0xff}, 422, "INVALID_ARGUMENT"},
 		{"invalid json", "application/json", []byte(`{`), 400, "INVALID_JSON"},
+		{"multiple json values", "application/json", []byte(`{"enabled":true}{"enabled":false}`), 400, "INVALID_JSON"},
 		{"json array", "application/json", []byte(`[]`), 400, "INVALID_JSON"},
 		{"null field", "application/json", []byte(`{"enabled":null}`), 422, "INVALID_ARGUMENT"},
 		{"wrong type", "application/json", []byte(`{"enabled":"yes"}`), 422, "INVALID_ARGUMENT"},
@@ -74,6 +75,19 @@ func TestMutationTransportValidation(t *testing.T) {
 				t.Fatalf("status %d: %s", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestDecodeRejectsNestedNull(t *testing.T) {
+	var payload struct {
+		Items []struct {
+			Enabled bool `json:"enabled"`
+		} `json:"items"`
+	}
+	err := decode([]byte(`{"items":[{"enabled":null}]}`), &payload)
+	var apiErr *apiError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusUnprocessableEntity {
+		t.Fatalf("nested null was not rejected: %v", err)
 	}
 }
 

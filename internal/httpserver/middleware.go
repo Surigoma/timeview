@@ -10,7 +10,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"golang.org/x/time/rate"
 
 	"timeview/internal/timer"
@@ -92,16 +91,46 @@ func decode(data []byte, value any) error {
 		return invalid("UTF-8で送信してください")
 	}
 	var fields map[string]json.RawMessage
-	if err := binding.JSON.BindBody(data, &fields); err != nil || fields == nil {
+	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
 		return &apiError{Status: 400, Code: "INVALID_JSON", Message: "JSONオブジェクトを指定してください"}
 	}
 	for _, field := range fields {
-		if bytes.Equal(bytes.TrimSpace(field), []byte("null")) {
+		if containsNull(field) {
 			return invalid("nullは指定できません")
 		}
 	}
-	if err := binding.JSON.BindBody(data, value); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(value); err != nil {
 		return invalid("フィールド名または値の型が不正です")
 	}
 	return nil
+}
+
+func containsNull(data json.RawMessage) bool {
+	data = bytes.TrimSpace(data)
+	if bytes.Equal(data, []byte("null")) {
+		return true
+	}
+	if len(data) == 0 {
+		return false
+	}
+	if data[0] == '{' {
+		var object map[string]json.RawMessage
+		_ = json.Unmarshal(data, &object)
+		for _, child := range object {
+			if containsNull(child) {
+				return true
+			}
+		}
+	} else if data[0] == '[' {
+		var children []json.RawMessage
+		_ = json.Unmarshal(data, &children)
+		for _, child := range children {
+			if containsNull(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
