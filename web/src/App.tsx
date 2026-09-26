@@ -180,7 +180,7 @@ export default function App() {
   const [overflow, setOverflow] = useState(false);
   const [record, setRecord] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const lastInput = useRef({ key: "", at: 0 });
+  const lastInput = useRef({ action: "", at: 0 });
   const configGeneration = useRef(0);
   const boot = timer.state?.instanceId;
   const version = timer.state?.version;
@@ -287,10 +287,11 @@ export default function App() {
       const now = performance.now();
       if (
         timer.busy ||
-        (lastInput.current.key === e.code && now - lastInput.current.at < 300)
+        (lastInput.current.action === binding.action &&
+          now - lastInput.current.at < 300)
       )
         return;
-      lastInput.current = { key: e.code, at: now };
+      lastInput.current = { action: binding.action, at: now };
       const sendAction = () => {
         const a = binding.action;
         if (a === "blackout" || a === "reveal")
