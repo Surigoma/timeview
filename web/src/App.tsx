@@ -10,6 +10,7 @@ import {
   phase,
   restoreBindings,
   storeBindings,
+  warningGauge,
 } from "./timer";
 import type { Binding, TimerState } from "./timer";
 import { useTimer } from "./useTimer";
@@ -70,6 +71,12 @@ function Stage({
   ]);
   const p = phase(state, remaining);
   const elapsed = elapsedPercent(state.durationSeconds, remaining);
+  const gauge = warningGauge(
+    state.durationSeconds,
+    state.warning1Seconds,
+    state.warning2Seconds,
+    remaining,
+  );
   return (
     <div
       ref={container}
@@ -78,6 +85,11 @@ function Stage({
         {
           "--stage-background": p.color,
           "--stage-foreground": foregroundColor(p.color),
+          "--gauge-normal": state.colors.normal,
+          "--gauge-warning1": state.colors.warning1,
+          "--gauge-warning2": state.colors.warning2,
+          "--gauge-warning1-start": `${gauge.warning1Start}%`,
+          "--gauge-warning2-start": `${gauge.warning2Start}%`,
         } as CSSProperties
       }
     >
@@ -103,15 +115,37 @@ function Stage({
           {!connected && (
             <span className="stage-offline">接続待ち · 推定表示</span>
           )}
-          <div
-            className="elapsed-gauge"
-            role="progressbar"
-            aria-label="経過時間"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(elapsed)}
-          >
-            <span style={{ width: `${elapsed}%` }} />
+          <div className="gauge-block">
+            {gauge.next && (
+              <div className="gauge-next">
+                <span>{gauge.next.label}</span>
+                <strong>{formatTime(gauge.next.remainingMs)}</strong>
+              </div>
+            )}
+            <div
+              className="elapsed-gauge"
+              role="progressbar"
+              aria-label="警告領域付き経過時間"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(elapsed)}
+              aria-valuetext={
+                gauge.next
+                  ? `${gauge.next.label} ${formatTime(gauge.next.remainingMs)}`
+                  : "終了時刻を超過"
+              }
+            >
+              <div
+                className="gauge-elapsed"
+                style={{ width: `${elapsed}%` }}
+                aria-hidden="true"
+              />
+              <div
+                className="gauge-position"
+                style={{ left: `${elapsed}%` }}
+                aria-hidden="true"
+              />
+            </div>
           </div>
           {!preview && (
             <button

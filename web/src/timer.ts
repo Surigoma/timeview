@@ -56,6 +56,44 @@ export function elapsedPercent(durationSeconds: number, remainingMs: number) {
   );
 }
 
+export function warningGauge(
+  durationSeconds: number,
+  warning1Seconds: number,
+  warning2Seconds: number,
+  remainingMs: number,
+) {
+  const warning1Start =
+    warning1Seconds > 0
+      ? elapsedPercent(durationSeconds, warning1Seconds * 1000)
+      : 100;
+  const warning2Start =
+    warning2Seconds > 0
+      ? elapsedPercent(durationSeconds, warning2Seconds * 1000)
+      : 100;
+  const thresholds = [
+    ...(warning1Seconds > warning2Seconds
+      ? [{ label: "第1警告まで", remainingMs: warning1Seconds * 1000 }]
+      : []),
+    ...(warning2Seconds > 0
+      ? [{ label: "第2警告まで", remainingMs: warning2Seconds * 1000 }]
+      : []),
+    { label: "終了まで", remainingMs: 0 },
+  ];
+  const next = thresholds.find(
+    (threshold) => remainingMs > threshold.remainingMs,
+  );
+  return {
+    warning1Start,
+    warning2Start,
+    next: next
+      ? {
+          label: next.label,
+          remainingMs: remainingMs - next.remainingMs,
+        }
+      : null,
+  };
+}
+
 export function foregroundColor(background: string) {
   const value = background.match(/^#([0-9a-f]{6})$/i)?.[1];
   if (!value) return "#ffffff";

@@ -10,6 +10,7 @@ import {
   requestID,
   restoreBindings,
   storeBindings,
+  warningGauge,
 } from "./timer.ts";
 import type { TimerState } from "./timer.ts";
 
@@ -64,6 +65,27 @@ test("elapsed gauge clamps adjustments and overtime", () => {
   assert.equal(elapsedPercent(600, 0), 100);
   assert.equal(elapsedPercent(600, -1000), 100);
   assert.equal(elapsedPercent(600, 660000), 0);
+});
+test("warning gauge exposes regions and the next threshold", () => {
+  assert.deepEqual(warningGauge(600, 180, 60, 600000), {
+    warning1Start: 70,
+    warning2Start: 90,
+    next: { label: "第1警告まで", remainingMs: 420000 },
+  });
+  assert.deepEqual(warningGauge(600, 180, 60, 180000).next, {
+    label: "第2警告まで",
+    remainingMs: 120000,
+  });
+  assert.deepEqual(warningGauge(600, 180, 60, 60000).next, {
+    label: "終了まで",
+    remainingMs: 60000,
+  });
+  assert.deepEqual(warningGauge(600, 0, 0, 600000), {
+    warning1Start: 100,
+    warning2Start: 100,
+    next: { label: "終了まで", remainingMs: 600000 },
+  });
+  assert.equal(warningGauge(600, 180, 60, 0).next, null);
 });
 test("stage foreground contrasts with its background", () => {
   assert.equal(foregroundColor("#f2cc60"), "#101218");
