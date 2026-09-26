@@ -155,3 +155,5 @@ export function useTimer() {
   );
   return { state, remaining, connected, notice, error, setError, busy, send };
 }
+
+export type TimerConnection = ReturnType<typeof useTimer>;
