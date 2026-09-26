@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { operationError } from "./i18n.ts";
 import {
   formatTime,
   matches,
@@ -21,6 +22,16 @@ test("rounding around zero and hour boundary", () => {
   assert.equal(formatTime(-1000), "−00:01");
   assert.equal(formatTime(3600000), "1:00:00");
   assert.equal(formatTime(-3661000), "−1:01:01");
+});
+test("operation errors always have a Japanese fallback", () => {
+  assert.equal(
+    operationError(),
+    "操作に失敗しました。自動再送は行いません。現在の状態を確認してください。",
+  );
+  assert.equal(
+    operationError("設定が競合しました"),
+    "設定が競合しました。自動再送は行いません。現在の状態を確認してください。",
+  );
 });
 test("blackout shortcut never also adjusts time; repeats ignored", () => {
   const event = {

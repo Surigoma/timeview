@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { operationError } from "./i18n";
 import type { TimerState } from "./timer";
 import { requestID } from "./timer";
 
@@ -112,6 +113,7 @@ export function useTimer() {
       setError("");
       const boot = current.current.instanceId,
         gen = generation.current;
+      let failure: string | undefined;
       try {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -127,18 +129,21 @@ export function useTimer() {
           signal: AbortSignal.timeout(5000),
         });
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error?.message ?? "操作に失敗しました");
+          const data = (await response.json().catch(() => null)) as {
+            error?: { message?: unknown };
+          } | null;
+          if (typeof data?.error?.message === "string") {
+            failure = data.error.message;
+          }
+          throw new Error();
         }
         const next: TimerState = await response.json();
         if (generation.current !== gen || next.instanceId !== boot)
           return false;
         accept(next);
         return true;
-      } catch (e) {
-        setError(
-          `${e instanceof Error ? e.message : "操作に失敗しました"}。自動再送は行いません。現在の状態を確認してください。`,
-        );
+      } catch {
+        setError(operationError(failure));
         void refresh().catch(() => {});
         return false;
       } finally {
