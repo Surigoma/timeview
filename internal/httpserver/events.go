@@ -1,4 +1,4 @@
-package timer
+package httpserver
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ func (s *Server) events(c *gin.Context) {
 	s.mu.Lock()
 	if len(s.clients) >= 50 {
 		s.mu.Unlock()
-		writeError(c, &apiError{429, "CAPACITY", "表示接続が上限に達しました"})
+		writeError(c, &apiError{Status: 429, Code: "CAPACITY", Message: "表示接続が上限に達しました"})
 		return
 	}
 	s.clients[client] = struct{}{}
@@ -42,7 +42,7 @@ func (s *Server) events(c *gin.Context) {
 		}
 		first = false
 		s.mu.Lock()
-		state := s.model.snapshot(s.now())
+		state := s.model.Snapshot(s.now())
 		s.mu.Unlock()
 		_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		data, _ := json.Marshal(state)

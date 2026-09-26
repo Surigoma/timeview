@@ -15,7 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"timeview/internal/timer"
+	"timeview/internal/httpserver"
 	"timeview/web"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	api, err := timer.NewWithConfig(absConfigPath)
+	api, err := httpserver.NewWithConfig(absConfigPath)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package timer
+package httpserver
 
 import (
 	"bufio"
@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"timeview/internal/timer"
 )
 
 func TestSSEInitialStateAndBlackoutUpdate(t *testing.T) {
@@ -28,11 +30,11 @@ func TestSSEInitialStateAndBlackoutUpdate(t *testing.T) {
 		t.Fatal("not SSE")
 	}
 	scanner := bufio.NewScanner(response.Body)
-	read := func() State {
+	read := func() timer.State {
 		t.Helper()
 		for scanner.Scan() {
 			if line := scanner.Text(); strings.HasPrefix(line, "data: ") {
-				var state State
+				var state timer.State
 				if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &state); err != nil {
 					t.Fatal(err)
 				}
@@ -40,7 +42,7 @@ func TestSSEInitialStateAndBlackoutUpdate(t *testing.T) {
 			}
 		}
 		t.Fatalf("stream closed: %v", scanner.Err())
-		return State{}
+		return timer.State{}
 	}
 	if !read().Blackout {
 		t.Fatal("startup must be black")
@@ -79,12 +81,12 @@ func requestAs(s *Server, method, path, body, key, etag string, browser bool) *h
 	return w
 }
 
-func stateOf(t *testing.T, w *httptest.ResponseRecorder) State {
+func stateOf(t *testing.T, w *httptest.ResponseRecorder) timer.State {
 	t.Helper()
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body)
 	}
-	var state State
+	var state timer.State
 	if err := json.Unmarshal(w.Body.Bytes(), &state); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +97,7 @@ func TestTimerBlackoutAndPause(t *testing.T) {
 	now := time.Now()
 	s := New()
 	s.now = func() time.Time { return now }
-	s.model.anchor = now
+	s.model = timer.New(now)
 	start := stateOf(t, request(s, "POST", "/timer/commands", `{"command":"start"}`, "start", ""))
 	now = now.Add(30 * time.Second)
 	paused := stateOf(t, request(s, "POST", "/timer/commands", `{"command":"pause"}`, "pause", ""))
@@ -135,7 +137,7 @@ func TestReplayAtomicityAndValidation(t *testing.T) {
 		t.Fatal(w.Code)
 	}
 	before := s.model.State
-	if w := request(s, "PATCH", "/timer", `{"durationSeconds":10,"warning1Seconds":100}`, "settings", before.etag()); w.Code != 422 {
+	if w := request(s, "PATCH", "/timer", `{"durationSeconds":10,"warning1Seconds":100}`, "settings", before.ETag()); w.Code != 422 {
 		t.Fatal(w.Code)
 	}
 	if s.model.State != before {
@@ -160,7 +162,7 @@ func TestReplayAtomicityAndValidation(t *testing.T) {
 func TestBrowserOnlyRejectsExternalMutations(t *testing.T) {
 	s := New()
 	before := stateOf(t, request(s, "GET", "/timer", "", "", ""))
-	enabled := stateOf(t, browserRequest(s, "PATCH", "/timer", `{"browserOnly":true}`, "enable-browser-only", before.etag()))
+	enabled := stateOf(t, browserRequest(s, "PATCH", "/timer", `{"browserOnly":true}`, "enable-browser-only", before.ETag()))
 	if !enabled.BrowserOnly {
 		t.Fatal("browser-only mode was not enabled")
 	}
@@ -189,7 +191,7 @@ func TestBrowserOnlyRejectsExternalMutations(t *testing.T) {
 	if running.Status != "running" {
 		t.Fatal("browser mutation was rejected")
 	}
-	disabled := stateOf(t, browserRequest(s, "PATCH", "/timer", `{"browserOnly":false}`, "disable-browser-only", running.etag()))
+	disabled := stateOf(t, browserRequest(s, "PATCH", "/timer", `{"browserOnly":false}`, "disable-browser-only", running.ETag()))
 	if disabled.BrowserOnly {
 		t.Fatal("browser-only mode was not disabled")
 	}

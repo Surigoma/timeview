@@ -1,4 +1,4 @@
-package timer
+package httpserver
 
 import (
 	"bytes"
@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
+
+	"timeview/internal/timer"
 )
 
 func rawRequest(s *Server, method, path, contentType string, body []byte) *httptest.ResponseRecorder {
@@ -88,7 +90,7 @@ func TestMessageLifecycleAndValidation(t *testing.T) {
 		t.Fatalf("status %d: %s", response.Code, response.Body.String())
 	}
 	cleared := stateOf(t, request(s, http.MethodDelete, "/timer/message", "", "delete", ""))
-	if cleared.Message != (Message{}) {
+	if cleared.Message != (timer.Message{}) {
 		t.Fatal(cleared.Message)
 	}
 	if response := request(s, http.MethodPut, "/timer/message", `{"visible":true}`, "show-empty", ""); response.Code != 422 {

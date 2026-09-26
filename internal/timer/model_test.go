@@ -14,35 +14,35 @@ func TestCommandValidationAndNoOps(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
 		name    string
-		prepare func(*model)
-		command command
+		prepare func(*Model)
+		command Command
 	}{
-		{"delta with start", nil, command{Command: "start", Delta: int64Pointer(1)}},
-		{"missing delta", nil, command{Command: "adjust"}},
-		{"zero delta", nil, command{Command: "adjust", Delta: int64Pointer(0)}},
-		{"large delta", nil, command{Command: "adjust", Delta: int64Pointer(3601)}},
-		{"remaining overflow", func(m *model) { m.Remaining = 86400000 }, command{Command: "adjust", Delta: int64Pointer(1)}},
-		{"unknown command", nil, command{Command: "launch"}},
+		{"delta with start", nil, Command{Command: "start", Delta: int64Pointer(1)}},
+		{"missing delta", nil, Command{Command: "adjust"}},
+		{"zero delta", nil, Command{Command: "adjust", Delta: int64Pointer(0)}},
+		{"large delta", nil, Command{Command: "adjust", Delta: int64Pointer(3601)}},
+		{"remaining overflow", func(m *Model) { m.Remaining = 86400000 }, Command{Command: "adjust", Delta: int64Pointer(1)}},
+		{"unknown command", nil, Command{Command: "launch"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			m := newModel(now)
+			m := New(now)
 			if test.prepare != nil {
 				test.prepare(&m)
 			}
-			if err := m.command(test.command, now); err == nil {
+			if err := m.Command(test.command, now); err == nil {
 				t.Fatal("expected validation error")
 			}
 		})
 	}
 
-	m := newModel(now)
+	m := New(now)
 	m.Status = "running"
 	m.anchor = now
-	if err := m.command(command{Command: "start"}, now.Add(time.Second)); err != nil || m.anchor != now {
+	if err := m.Command(Command{Command: "start"}, now.Add(time.Second)); err != nil || m.anchor != now {
 		t.Fatalf("running start changed state: %+v, %v", m.State, err)
 	}
 	m.Status = "idle"
-	if err := m.command(command{Command: "pause"}, now); err != nil || m.Status != "idle" {
+	if err := m.Command(Command{Command: "pause"}, now); err != nil || m.Status != "idle" {
 		t.Fatalf("idle pause changed state: %+v, %v", m.State, err)
 	}
 }
@@ -51,31 +51,31 @@ func TestConfigureValidation(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
 		name    string
-		prepare func(*model)
-		input   settings
+		prepare func(*Model)
+		input   Settings
 	}{
-		{"duration too small", nil, settings{Duration: int64Pointer(0)}},
-		{"duration while active", func(m *model) { m.Status = "running" }, settings{Duration: int64Pointer(30)}},
-		{"warning order", nil, settings{Warning1: int64Pointer(30)}},
-		{"display mode", nil, settings{DisplayMode: stringPointer("clock")}},
-		{"short color", nil, settings{Colors: &Colors{Normal: "#fff", Warning1: "#112233", Warning2: "#223344", Overtime: "#334455"}}},
-		{"invalid color", nil, settings{Colors: &Colors{Normal: "#xxxxxx", Warning1: "#112233", Warning2: "#223344", Overtime: "#334455"}}},
+		{"duration too small", nil, Settings{Duration: int64Pointer(0)}},
+		{"duration while active", func(m *Model) { m.Status = "running" }, Settings{Duration: int64Pointer(30)}},
+		{"warning order", nil, Settings{Warning1: int64Pointer(30)}},
+		{"display mode", nil, Settings{DisplayMode: stringPointer("clock")}},
+		{"short color", nil, Settings{Colors: &Colors{Normal: "#fff", Warning1: "#112233", Warning2: "#223344", Overtime: "#334455"}}},
+		{"invalid color", nil, Settings{Colors: &Colors{Normal: "#xxxxxx", Warning1: "#112233", Warning2: "#223344", Overtime: "#334455"}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			m := newModel(now)
+			m := New(now)
 			if test.prepare != nil {
 				test.prepare(&m)
 			}
-			if err := m.configure(test.input); err == nil {
+			if err := m.Configure(test.input); err == nil {
 				t.Fatal("expected validation error")
 			}
 		})
 	}
 
-	m := newModel(now)
+	m := New(now)
 	colors := Colors{"#010203", "#112233", "#223344", "#334455"}
-	input := settings{DisplayMode: stringPointer("message"), Flash: boolPointer(true), BrowserOnly: boolPointer(true), Colors: &colors}
-	if err := m.configure(input); err != nil {
+	input := Settings{DisplayMode: stringPointer("message"), Flash: boolPointer(true), BrowserOnly: boolPointer(true), Colors: &colors}
+	if err := m.Configure(input); err != nil {
 		t.Fatal(err)
 	}
 	if m.DisplayMode != "message" || !m.Flash || !m.BrowserOnly || m.Colors != colors {
@@ -84,19 +84,19 @@ func TestConfigureValidation(t *testing.T) {
 }
 
 func TestTextPresetAndBindingValidation(t *testing.T) {
-	if err := validateText(string([]byte{0xff})); err == nil {
+	if err := ValidateText(string([]byte{0xff})); err == nil {
 		t.Fatal("invalid UTF-8 was accepted")
 	}
-	if err := validateText("bad\x00text"); err == nil {
+	if err := ValidateText("bad\x00text"); err == nil {
 		t.Fatal("control character was accepted")
 	}
-	if err := validateText("line one\nline two\tend"); err != nil {
+	if err := ValidateText("line one\nline two\tend"); err != nil {
 		t.Fatal(err)
 	}
-	if err := validatePresets(make([]string, 10)); err == nil {
+	if err := ValidatePresets(make([]string, 10)); err == nil {
 		t.Fatal("too many presets were accepted")
 	}
-	if err := validatePresets([]string{strings.Repeat("あ", 501)}); err == nil {
+	if err := ValidatePresets([]string{strings.Repeat("あ", 501)}); err == nil {
 		t.Fatal("oversized preset was accepted")
 	}
 
@@ -117,7 +117,7 @@ func TestTextPresetAndBindingValidation(t *testing.T) {
 		"wrong count":      bindings[:18],
 	} {
 		t.Run(name, func(t *testing.T) {
-			if err := validateBindings(candidate); err == nil {
+			if err := ValidateBindings(candidate); err == nil {
 				t.Fatal("invalid bindings were accepted")
 			}
 		})

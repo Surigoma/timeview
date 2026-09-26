@@ -1,4 +1,4 @@
-package timer
+package httpserver
 
 import (
 	"bytes"
@@ -12,7 +12,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"golang.org/x/time/rate"
+
+	"timeview/internal/timer"
 )
+
+type apiError = timer.APIError
+
+func invalid(message string) error  { return timer.Invalid(message) }
+func conflict(message string) error { return timer.Conflict(message) }
 
 type clientLimit struct {
 	write *rate.Limiter
@@ -61,7 +68,7 @@ func (s *Server) rateLimit() gin.HandlerFunc {
 		}
 		s.mu.Unlock()
 		if !allowed {
-			writeError(c, &apiError{429, "RATE_LIMITED", "操作間隔を空けて再試行してください"})
+			writeError(c, &apiError{Status: 429, Code: "RATE_LIMITED", Message: "操作間隔を空けて再試行してください"})
 			c.Abort()
 			return
 		}
@@ -72,12 +79,12 @@ func (s *Server) rateLimit() gin.HandlerFunc {
 func writeError(c *gin.Context, err error) {
 	var apiErr *apiError
 	if !errors.As(err, &apiErr) {
-		apiErr = &apiError{500, "INTERNAL_ERROR", "内部エラーが発生しました"}
+		apiErr = &apiError{Status: 500, Code: "INTERNAL_ERROR", Message: "内部エラーが発生しました"}
 	}
-	if apiErr.status == http.StatusTooManyRequests {
+	if apiErr.Status == http.StatusTooManyRequests {
 		c.Header("Retry-After", "1")
 	}
-	c.AbortWithStatusJSON(apiErr.status, gin.H{"error": gin.H{"code": apiErr.code, "message": apiErr.message}})
+	c.AbortWithStatusJSON(apiErr.Status, gin.H{"error": gin.H{"code": apiErr.Code, "message": apiErr.Message}})
 }
 
 func decode(data []byte, value any) error {
@@ -86,7 +93,7 @@ func decode(data []byte, value any) error {
 	}
 	var fields map[string]json.RawMessage
 	if err := binding.JSON.BindBody(data, &fields); err != nil || fields == nil {
-		return &apiError{400, "INVALID_JSON", "JSONオブジェクトを指定してください"}
+		return &apiError{Status: 400, Code: "INVALID_JSON", Message: "JSONオブジェクトを指定してください"}
 	}
 	for _, field := range fields {
 		if bytes.Equal(bytes.TrimSpace(field), []byte("null")) {

@@ -68,72 +68,72 @@ func defaultBindings() []KeyBinding {
 	return bindings
 }
 
-func validatePresets(presets []string) error {
+func ValidatePresets(presets []string) error {
 	if err := configValidator.Var(presets, "max=9,dive,max=500"); err != nil {
-		return invalid("定型文は最大9件です")
+		return Invalid("定型文は最大9件です")
 	}
 	for _, text := range presets {
-		if err := validateText(text); err != nil {
+		if err := ValidateText(text); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateBindings(bindings []KeyBinding) error {
+func ValidateBindings(bindings []KeyBinding) error {
 	if err := configValidator.Var(bindings, "len=19,dive"); err != nil {
-		return invalid("キー割り当ての内容が不正です")
+		return Invalid("キー割り当ての内容が不正です")
 	}
 	seenActions := make(map[string]struct{}, len(bindings))
 	seenKeys := make(map[KeyBinding]struct{}, len(bindings))
 	for _, binding := range bindings {
 		if _, ok := seenActions[binding.Action]; ok {
-			return invalid("キー操作が重複しています")
+			return Invalid("キー操作が重複しています")
 		}
 		seenActions[binding.Action] = struct{}{}
 		if !utf8.ValidString(binding.Code) || len(binding.Code) == 0 || utf8.RuneCountInString(binding.Code) > 64 {
-			return invalid("キーコードは1～64文字にしてください")
+			return Invalid("キーコードは1～64文字にしてください")
 		}
 		key := binding
 		key.Action = ""
 		if _, ok := seenKeys[key]; ok {
-			return invalid("同じキーが複数の操作に割り当てられています")
+			return Invalid("同じキーが複数の操作に割り当てられています")
 		}
 		seenKeys[key] = struct{}{}
 		if binding.Action == "reset" && !binding.Ctrl && !binding.Shift && !binding.Alt && !binding.Meta {
-			return invalid("リセットには修飾キーが必要です")
+			return Invalid("リセットには修飾キーが必要です")
 		}
 	}
 	return nil
 }
 
-func configFromModel(m model) fileConfig {
+func configFromModel(m Model) fileConfig {
 	return fileConfig{
 		Version: configVersion,
 		Timer: timerConfig{
 			Duration: m.Duration, Warning1: m.Warning1, Warning2: m.Warning2,
 			DisplayMode: m.DisplayMode, Flash: m.Flash, BrowserOnly: m.BrowserOnly, Colors: m.Colors,
 		},
-		Presets:        append([]string{}, m.presets...),
-		KeypadBindings: append([]KeyBinding{}, m.bindings...),
+		Presets:        m.Presets(),
+		KeypadBindings: m.Bindings(),
 	}
 }
 
-func loadModel(path string, now time.Time) (model, error) {
-	m := newModel(now)
+func Load(path string, now time.Time) (Model, error) {
+	m := New(now)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return m, saveConfig(path, m)
+		return m, Save(path, m)
 	}
 	if err != nil {
-		return model{}, fmt.Errorf("設定ファイルを読み込めません: %w", err)
+		return Model{}, fmt.Errorf("設定ファイルを読み込めません: %w", err)
 	}
 	if !utf8.Valid(data) {
-		return model{}, fmt.Errorf("設定ファイルはUTF-8で保存してください")
+		return Model{}, fmt.Errorf("設定ファイルはUTF-8で保存してください")
 	}
 	configStore := koanf.New(".")
 	if err := configStore.Load(rawbytes.Provider(data), kjson.Parser()); err != nil {
-		return model{}, fmt.Errorf("設定ファイルのJSONが不正です: %w", err)
+		return Model{}, fmt.Errorf("設定ファイルのJSONが不正です: %w", err)
 	}
 	var config fileConfig
 	if err := configStore.UnmarshalWithConf("", &config, koanf.UnmarshalConf{
@@ -148,34 +148,34 @@ func loadModel(path string, now time.Time) (model, error) {
 		if strings.Contains(err.Error(), "invalid keys") {
 			message = "設定ファイルにunknown fieldがあります"
 		}
-		return model{}, fmt.Errorf("%s: %w", message, err)
+		return Model{}, fmt.Errorf("%s: %w", message, err)
 	}
 	if config.Version != configVersion {
-		return model{}, fmt.Errorf("未対応の設定バージョンです: %d", config.Version)
+		return Model{}, fmt.Errorf("未対応の設定バージョンです: %d", config.Version)
 	}
 	if err := configValidator.Struct(config); err != nil {
-		return model{}, fmt.Errorf("設定ファイルの値が不正です: %w", err)
+		return Model{}, fmt.Errorf("設定ファイルの値が不正です: %w", err)
 	}
-	settings := settings{
+	settings := Settings{
 		Duration: &config.Timer.Duration, Warning1: &config.Timer.Warning1,
 		Warning2: &config.Timer.Warning2, DisplayMode: &config.Timer.DisplayMode,
 		Flash: &config.Timer.Flash, BrowserOnly: &config.Timer.BrowserOnly, Colors: &config.Timer.Colors,
 	}
-	if err := m.configure(settings); err != nil {
-		return model{}, fmt.Errorf("設定ファイルのタイマー設定が不正です: %w", err)
+	if err := m.Configure(settings); err != nil {
+		return Model{}, fmt.Errorf("設定ファイルのタイマー設定が不正です: %w", err)
 	}
-	if err := validatePresets(config.Presets); err != nil {
-		return model{}, fmt.Errorf("設定ファイルの定型文が不正です: %w", err)
+	if err := ValidatePresets(config.Presets); err != nil {
+		return Model{}, fmt.Errorf("設定ファイルの定型文が不正です: %w", err)
 	}
-	if err := validateBindings(config.KeypadBindings); err != nil {
-		return model{}, fmt.Errorf("設定ファイルのキー割り当てが不正です: %w", err)
+	if err := ValidateBindings(config.KeypadBindings); err != nil {
+		return Model{}, fmt.Errorf("設定ファイルのキー割り当てが不正です: %w", err)
 	}
-	m.presets = append([]string{}, config.Presets...)
-	m.bindings = append([]KeyBinding{}, config.KeypadBindings...)
+	m.SetPresets(config.Presets)
+	m.SetBindings(config.KeypadBindings)
 	return m, nil
 }
 
-func saveConfig(path string, m model) error {
+func Save(path string, m Model) error {
 	configStore := koanf.New(".")
 	if err := configStore.Load(structs.Provider(configFromModel(m), "json"), nil); err != nil {
 		return err

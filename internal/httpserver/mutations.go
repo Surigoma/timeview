@@ -1,4 +1,4 @@
-package timer
+package httpserver
 
 import (
 	"bytes"
@@ -6,28 +6,30 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"timeview/internal/timer"
 )
 
-func updateSettings(next *model, _ *gin.Context, data []byte, _ time.Time) error {
-	var payload settings
+func updateSettings(next *timer.Model, _ *gin.Context, data []byte, _ time.Time) error {
+	var payload timer.Settings
 	if err := decode(data, &payload); err != nil {
 		return err
 	}
-	return next.configure(payload)
+	return next.Configure(payload)
 }
 
-func runCommand(next *model, c *gin.Context, data []byte, now time.Time) error {
-	var payload command
+func runCommand(next *timer.Model, c *gin.Context, data []byte, now time.Time) error {
+	var payload timer.Command
 	if err := decode(data, &payload); err != nil {
 		return err
 	}
 	if payload.Command == "adjust" && c.GetHeader("Idempotency-Key") == "" {
-		return &apiError{428, "PRECONDITION_REQUIRED", "加減算にはIdempotency-Keyが必要です"}
+		return &apiError{Status: 428, Code: "PRECONDITION_REQUIRED", Message: "加減算にはIdempotency-Keyが必要です"}
 	}
-	return next.command(payload, now)
+	return next.Command(payload, now)
 }
 
-func updateBlackout(next *model, _ *gin.Context, data []byte, _ time.Time) error {
+func updateBlackout(next *timer.Model, _ *gin.Context, data []byte, _ time.Time) error {
 	var payload struct {
 		Enabled *bool `json:"enabled"`
 	}
@@ -41,12 +43,12 @@ func updateBlackout(next *model, _ *gin.Context, data []byte, _ time.Time) error
 	return nil
 }
 
-func updateMessage(next *model, c *gin.Context, data []byte, _ time.Time) error {
+func updateMessage(next *timer.Model, c *gin.Context, data []byte, _ time.Time) error {
 	if c.Request.Method == http.MethodDelete {
 		if len(bytes.TrimSpace(data)) > 0 {
 			return invalid("消去では本文を指定しないでください")
 		}
-		next.Message = Message{}
+		next.Message = timer.Message{}
 		return nil
 	}
 
@@ -61,7 +63,7 @@ func updateMessage(next *model, c *gin.Context, data []byte, _ time.Time) error 
 		return invalid("textまたはvisibleを指定してください")
 	}
 	if payload.Text != nil {
-		next.Message = Message{*payload.Text, *payload.Text != ""}
+		next.Message = timer.Message{Text: *payload.Text, Visible: *payload.Text != ""}
 	}
 	if payload.Visible != nil {
 		next.Message.Visible = *payload.Visible
@@ -69,7 +71,7 @@ func updateMessage(next *model, c *gin.Context, data []byte, _ time.Time) error 
 	if payload.Text != nil && *payload.Text == "" {
 		next.Message.Visible = false
 	}
-	if err := validateText(next.Message.Text); err != nil {
+	if err := timer.ValidateText(next.Message.Text); err != nil {
 		return err
 	}
 	if next.Message.Visible && next.Message.Text == "" {
@@ -78,7 +80,7 @@ func updateMessage(next *model, c *gin.Context, data []byte, _ time.Time) error 
 	return nil
 }
 
-func updatePresets(next *model, _ *gin.Context, data []byte, _ time.Time) error {
+func updatePresets(next *timer.Model, _ *gin.Context, data []byte, _ time.Time) error {
 	var payload struct {
 		Presets *[]string `json:"presets"`
 	}
@@ -88,16 +90,16 @@ func updatePresets(next *model, _ *gin.Context, data []byte, _ time.Time) error 
 	if payload.Presets == nil {
 		return invalid("presetsを指定してください")
 	}
-	if err := validatePresets(*payload.Presets); err != nil {
+	if err := timer.ValidatePresets(*payload.Presets); err != nil {
 		return err
 	}
-	next.presets = append([]string{}, (*payload.Presets)...)
+	next.SetPresets(*payload.Presets)
 	return nil
 }
 
-func updateBindings(next *model, _ *gin.Context, data []byte, _ time.Time) error {
+func updateBindings(next *timer.Model, _ *gin.Context, data []byte, _ time.Time) error {
 	var payload struct {
-		Bindings *[]KeyBinding `json:"bindings"`
+		Bindings *[]timer.KeyBinding `json:"bindings"`
 	}
 	if err := decode(data, &payload); err != nil {
 		return err
@@ -105,9 +107,9 @@ func updateBindings(next *model, _ *gin.Context, data []byte, _ time.Time) error
 	if payload.Bindings == nil {
 		return invalid("bindingsを指定してください")
 	}
-	if err := validateBindings(*payload.Bindings); err != nil {
+	if err := timer.ValidateBindings(*payload.Bindings); err != nil {
 		return err
 	}
-	next.bindings = append([]KeyBinding{}, (*payload.Bindings)...)
+	next.SetBindings(*payload.Bindings)
 	return nil
 }
