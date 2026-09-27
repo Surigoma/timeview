@@ -11,6 +11,8 @@ task setup
 # 別ターミナルでそれぞれ起動
 task dev:backend
 task dev:frontend
+# UIなしリモコン（例）
+task dev:remote -- -server http://127.0.0.1:8080 status
 ```
 
 Viteは表示された開発URLで開く。`/api`とSSEはGoの8080ポートへプロキシされる。GoサーバーはReact成果物を埋め込むため、`dev:backend`でも先にフロントをビルドする。
@@ -31,6 +33,7 @@ task docker:up
 
 - `task build`: 現在のOS／CPU向けバイナリを生成する。
 - `task release`: Windows amd64、macOS amd64／arm64、Linux amd64／arm64向けにサーバーとUIなしリモコンを生成する。
+- `task dev:remote -- <引数>`: UIなしリモコンをソースから実行する。
 - Go検証の対象は `. ./cmd/... ./internal/... ./web`。`node_modules`内の他社Goコードは対象外。
 - 本番実行時はGo、Node.js、Task、DBを必要としない。
 - 生成物は`dist/`へ出力し、Gitには追加しない。

@@ -471,6 +471,7 @@ DockerイメージはマルチステージでフロントエンドとGoバイナ
 | `task setup` | Go依存とフロント依存をロックファイルに従って取得 |
 | `task dev:backend` | 開発用Goサーバーを起動 |
 | `task dev:frontend` | Vite開発サーバーを起動。API・SSEはGoへプロキシ |
+| `task dev:remote -- <引数>` | UIなしリモコンをソースから実行 |
 | `task fmt` | Go・フロントのコードを整形 |
 | `task lint` | Goの静的検査、TypeScriptの型検査、フロントのlint |
 | `task test` | Go・フロントの自動テストを実行して終了 |

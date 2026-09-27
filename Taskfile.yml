@@ -20,6 +20,9 @@ tasks:
     desc: Start Vite (API and SSE proxy to Go)
     dir: web
     cmds: ['{{.NPM}} run dev -- {{.CLI_ARGS}}']
+  dev:remote:
+    desc: Run the headless remote CLI
+    cmds: ['go run -buildvcs=false ./cmd/timeview-remote {{.CLI_ARGS}}']
   fmt:
     desc: Format Go and frontend source
     cmds:
