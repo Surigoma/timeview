@@ -49,7 +49,7 @@ func main() {
 		c.Header("Cache-Control", "no-store")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", index)
 	}
-	for _, path := range []string{"/", "/control", "/display", "/settings"} {
+	for _, path := range []string{"/", "/control", "/touch", "/display", "/settings"} {
 		router.Match([]string{http.MethodGet, http.MethodHead}, path, serveIndex)
 	}
 	router.NoRoute(func(c *gin.Context) {

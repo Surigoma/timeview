@@ -486,6 +486,94 @@ footer {
 footer span {
   letter-spacing: 0;
 }
+.touch-screen {
+  min-height: 100dvh;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+  background: var(--bg);
+}
+.touch-header,
+.touch-footer {
+  height: auto;
+  padding: 0 0 20px;
+  border: 0;
+}
+.touch-timer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+.touch-timer > div,
+.touch-actions,
+.touch-presets {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.touch-time {
+  margin: 18px 0 6px;
+  font: clamp(58px, 10vw, 112px) ui-monospace, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+.touch-timer p {
+  color: var(--muted);
+}
+.touch-transport {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.touch-screen button {
+  min-height: 64px;
+  font-size: 16px;
+  touch-action: manipulation;
+}
+.touch-reset {
+  grid-column: 1 / -1;
+}
+.touch-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.touch-blackout,
+.touch-message-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.touch-blackout .current {
+  background: #090b0f;
+  border-color: #747e8e;
+}
+.touch-presets {
+  margin-top: 24px;
+}
+.touch-presets > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+.touch-presets button {
+  justify-content: flex-start;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.touch-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+.touch-footer a {
+  color: var(--muted);
+}
 .stage {
   container-type: inline-size;
   position: relative;
@@ -674,6 +762,10 @@ footer span {
   .panel {
     padding: 18px;
   }
+  .touch-timer,
+  .touch-actions {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 450px) {
   header .button {
@@ -688,5 +780,11 @@ footer span {
   }
   .operator-time {
     font-size: 65px;
+  }
+  .touch-screen {
+    padding: 14px;
+  }
+  .touch-presets > div {
+    grid-template-columns: 1fr;
   }
 }

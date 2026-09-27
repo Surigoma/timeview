@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ControlScreen } from "./ControlScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { Stage } from "./Stage";
+import { TouchScreen } from "./TouchScreen";
 import {
   defaultBindings,
   matches,
@@ -14,6 +15,7 @@ import { useTimer } from "./useTimer";
 export default function App() {
   const timer = useTimer();
   const display = location.pathname === "/display";
+  const touch = location.pathname === "/touch";
   const [tab, setTab] = useState(
     location.pathname === "/settings" ? "settings" : "control",
   );
@@ -191,6 +193,8 @@ export default function App() {
     );
   }
 
+  if (touch) return <TouchScreen timer={timer} presets={presets} />;
+
   return (
     <div className="app-shell">
       <header>
@@ -203,6 +207,9 @@ export default function App() {
             <i />
             {timer.connected ? "接続中" : "接続待ち"}
           </span>
+          <a className="button small" href="/touch">
+            タッチ操作
+          </a>
           <a
             className="button small"
             href="/display"
