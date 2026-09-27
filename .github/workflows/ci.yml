@@ -10,6 +10,8 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: 0
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -31,12 +33,38 @@ jobs:
       - run: go test ./cmd/...
       - run: docker build --tag timeview:ci .
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
+  native-build:
     needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-amd64
+            runner: windows-latest
+            goos: windows
+            goarch: amd64
+            extension: .exe
+          - target: darwin-amd64
+            runner: macos-15-intel
+            goos: darwin
+            goarch: amd64
+            extension: ''
+          - target: darwin-arm64
+            runner: macos-15
+            goos: darwin
+            goarch: arm64
+            extension: ''
+          - target: linux-amd64
+            runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            extension: ''
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
+            extension: ''
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -50,28 +78,54 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm --prefix web ci
       - run: npm --prefix web run build
-      - name: Build release archives
+      - name: Install Linux input headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libx11-dev libxtst-dev libx11-xcb-dev libxcb-xkb-dev libxkbcommon-dev libxkbcommon-x11-dev
+      - name: Build native executables
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release staging/windows-amd64 staging/darwin-amd64 staging/darwin-arm64 staging/linux-amd64 staging/linux-arm64
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o staging/windows-amd64/timeview.exe .
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o staging/windows-amd64/timeview-remote.exe ./cmd/timeview-remote
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o staging/darwin-amd64/timeview .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o staging/darwin-amd64/timeview-remote ./cmd/timeview-remote
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o staging/darwin-arm64/timeview .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o staging/darwin-arm64/timeview-remote ./cmd/timeview-remote
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o staging/linux-amd64/timeview .
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o staging/linux-amd64/timeview-remote ./cmd/timeview-remote
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o staging/linux-arm64/timeview .
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o staging/linux-arm64/timeview-remote ./cmd/timeview-remote
-          zip -j "release/timeview_${GITHUB_REF_NAME}_windows_amd64.zip" staging/windows-amd64/timeview.exe staging/windows-amd64/timeview-remote.exe
-          tar -czf "release/timeview_${GITHUB_REF_NAME}_darwin_amd64.tar.gz" -C staging/darwin-amd64 timeview timeview-remote
-          tar -czf "release/timeview_${GITHUB_REF_NAME}_darwin_arm64.tar.gz" -C staging/darwin-arm64 timeview timeview-remote
-          tar -czf "release/timeview_${GITHUB_REF_NAME}_linux_amd64.tar.gz" -C staging/linux-amd64 timeview timeview-remote
-          tar -czf "release/timeview_${GITHUB_REF_NAME}_linux_arm64.tar.gz" -C staging/linux-arm64 timeview timeview-remote
-          cd release
-          sha256sum timeview_* > SHA256SUMS.txt
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            export PATH="/c/msys64/ucrt64/bin:/c/msys64/mingw64/bin:${PATH}"
+            command -v gcc
+            command -v g++
+            remote_ldflags='-s -w -linkmode external -extldflags "-static"'
+          else
+            remote_ldflags='-s -w'
+          fi
+          mkdir -p "staging/${{ matrix.target }}"
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o "staging/${{ matrix.target }}/timeview${{ matrix.extension }}" .
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go vet ./cmd/timeview-remote
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -buildvcs=false -trimpath -ldflags="${remote_ldflags}" -o "staging/${{ matrix.target }}/timeview-remote${{ matrix.extension }}" ./cmd/timeview-remote
+      - name: Package Windows release
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "staging/${{ matrix.target }}/*" -DestinationPath "timeview_${{ github.ref_name }}_${{ matrix.target }}.zip"
+      - name: Package Unix release
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
+        shell: bash
+        run: tar -czf "timeview_${{ github.ref_name }}_${{ matrix.target }}.tar.gz" -C "staging/${{ matrix.target }}" timeview timeview-remote
+      - uses: actions/upload-artifact@v6
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: ${{ matrix.target }}
+          path: timeview_${{ github.ref_name }}_*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: native-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create checksums
+        working-directory: release
+        run: sha256sum timeview_* > SHA256SUMS.txt
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

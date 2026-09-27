@@ -121,6 +121,25 @@ func TestInputBindings(t *testing.T) {
 	}
 }
 
+func TestNativeInputMappingAndMIDILatch(t *testing.T) {
+	keyboard := keyboardEvent(0x0e1c, maskCtrl|maskShift)
+	if keyboard.Code != "NumpadEnter" || !keyboard.Ctrl || !keyboard.Shift || keyboard.Alt || keyboard.Meta {
+		t.Fatalf("keyboard event = %#v", keyboard)
+	}
+
+	var latch midiLatch
+	var events []midiBinding
+	for _, message := range [][3]uint8{{0x90, 36, 127}, {0x90, 36, 100}, {0x80, 36, 0}, {0x90, 36, 64}} {
+		status, data1, value := message[0], message[1], message[2]
+		if binding, ok := latch.press(1, status, data1, value); ok {
+			events = append(events, binding)
+		}
+	}
+	if len(events) != 2 || events[0].Data1 != 36 || events[1].Data1 != 36 {
+		t.Fatalf("MIDI events = %#v", events)
+	}
+}
+
 func TestListenUsesServerBindings(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -22,6 +22,8 @@ tasks:
     cmds: ['{{.NPM}} run dev -- {{.CLI_ARGS}}']
   dev:remote:
     desc: Run the headless remote CLI
+    env:
+      CGO_ENABLED: '1'
     cmds: ['go run -buildvcs=false ./cmd/timeview-remote {{.CLI_ARGS}}']
   fmt:
     desc: Format Go and frontend source
@@ -30,12 +32,16 @@ tasks:
       - '{{.NPM}} --prefix web run fmt'
   lint:
     desc: Check Go, TypeScript and ESLint
+    env:
+      CGO_ENABLED: '0'
     cmds:
       - task: web:build
       - go vet -tags=nomsgpack . ./cmd/... ./internal/... ./web
       - '{{.NPM}} --prefix web run lint'
   test:
     desc: Run backend and frontend tests
+    env:
+      CGO_ENABLED: '0'
     cmds:
       - task: web:build
       - go test -tags=nomsgpack . ./cmd/... ./internal/... ./web
@@ -50,6 +56,7 @@ tasks:
       - task: web:build
       - task: binary
         vars: { TARGET_OS: '{{OS}}', TARGET_ARCH: '{{ARCH}}' }
+      - task: remote:build
   docker:build:
     desc: Build the lightweight TimeView container image
     cmds:
@@ -66,21 +73,16 @@ tasks:
       GOARCH: '{{.TARGET_ARCH}}'
     cmds:
       - go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview{{if eq .TARGET_OS "windows"}}.exe{{end}} .
-      - go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview-remote{{if eq .TARGET_OS "windows"}}.exe{{end}} ./cmd/timeview-remote
-  release:
-    desc: Build Windows, macOS and Linux release executables (5 targets)
+  remote:build:
+    desc: Build the headless remote CLI for this OS/CPU (requires a C/C++ toolchain)
+    env:
+      CGO_ENABLED: '1'
     cmds:
-      - task: web:build
-      - task: binary
-        vars: { TARGET_OS: windows, TARGET_ARCH: amd64 }
-      - task: binary
-        vars: { TARGET_OS: darwin, TARGET_ARCH: amd64 }
-      - task: binary
-        vars: { TARGET_OS: darwin, TARGET_ARCH: arm64 }
-      - task: binary
-        vars: { TARGET_OS: linux, TARGET_ARCH: amd64 }
-      - task: binary
-        vars: { TARGET_OS: linux, TARGET_ARCH: arm64 }
+      - go build -buildvcs=false -trimpath -ldflags='-s -w{{if eq OS "windows"}} -linkmode external -extldflags "-static"{{end}}' -o dist/{{OS}}-{{ARCH}}/timeview-remote{{if eq OS "windows"}}.exe{{end}} ./cmd/timeview-remote
+  release:
+    desc: Build release executables for this OS/CPU (CI builds all 5 targets)
+    cmds:
+      - task: build
   release:tag:
     desc: Validate, create vVERSION tag and push it to trigger a GitHub release
     requires:

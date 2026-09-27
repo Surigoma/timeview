@@ -4,7 +4,9 @@
 
 検証環境はGo 1.27.1、Node.js 24.16.0、npm 11.13.0、Task 3.45.4（Taskfile v3）。Go依存は`go.mod`と`go.sum`、フロント依存は`package-lock.json`で固定する。
 
-バックエンドはGinでHTTPルーティング、KoanfでJSON設定、go-playground/validatorで入力検証、`golang.org/x/time/rate`でAPI流量制限を実装している。タイマー状態はメモリ内に保持し、CGOは使用しない。詳細は[依存ライブラリの選定](DEPENDENCIES.md)を参照。
+バックエンドはGinでHTTPルーティング、KoanfでJSON設定、go-playground/validatorで入力検証、`golang.org/x/time/rate`でAPI流量制限を実装している。タイマー状態はメモリ内に保持し、サーバーはCGOを使用しない。UIなしリモコンのビルドにはCGOとC/C++ツールチェーンが必要になる。詳細は[依存ライブラリの選定](DEPENDENCIES.md)を参照。
+
+UIなしリモコンをローカルビルドする場合、WindowsはMinGW-w64、macOSはXcode Command Line Tools、LinuxはC/C++コンパイラーに加えてALSA、X11、Xtst、X11-xcb、xcb-xkb、xkbcommonの開発パッケージを用意する。配布用CIは対象OSごとにこれらを準備する。
 
 ```sh
 task setup
@@ -17,7 +19,7 @@ task dev:remote -- -server http://127.0.0.1:8080 status
 
 Viteは表示された開発URLで開く。`/api`とSSEはGoの8080ポートへプロキシされる。GoサーバーはReact成果物を埋め込むため、`dev:backend`でも先にフロントをビルドする。
 
-ブラウザのMIDI入力は標準のWeb MIDI APIを直接使用する。Windows版UIなしリモコンの常駐入力は標準ライブラリからWindowsの低レベルキーフックとWinMMを直接呼び、CGOや追加ライブラリを使わない。どちらもNote OnとControl Changeだけを対象とする。
+ブラウザのMIDI入力は標準のWeb MIDI APIを直接使用する。UIなしリモコンの常駐入力はgohookでグローバルキー、gomidi/rtmididrvで各OSのMIDI入力を監視する。WindowsはWinMM、macOSはCoreMIDI、LinuxはALSAとX11を利用し、Note OnとControl Changeだけを対象とする。macOSではアクセシビリティの入力監視許可が必要で、LinuxのWaylandネイティブ環境は対象外とする。
 
 ## 検証とビルド
 
@@ -32,7 +34,8 @@ task docker:up
 ```
 
 - `task build`: 現在のOS／CPU向けバイナリを生成する。
-- `task release`: Windows amd64、macOS amd64／arm64、Linux amd64／arm64向けにサーバーとUIなしリモコンを生成する。
+- `task release`: 実行中のOS／CPU向けにサーバーとUIなしリモコンを生成する。Windows amd64、macOS amd64／arm64、Linux amd64／arm64の全成果物はGitHub Actionsが各OSのネイティブランナーで生成する。
+- `task remote:build`: 現在のOS／CPU向けUIなしリモコンだけをCGO有効で生成する。
 - `task dev:remote -- <引数>`: UIなしリモコンをソースから実行する。
 - Go検証の対象は `. ./cmd/... ./internal/... ./web`。`node_modules`内の他社Goコードは対象外。
 - 本番実行時はGo、Node.js、Task、DBを必要としない。
@@ -42,7 +45,7 @@ task docker:up
 
 ## GitHub Actionsとリリース
 
-`.github/workflows/ci.yml`はpushとpull requestでフロントエンドのlint・テスト・ビルド、Goのvet・テスト・カバレッジ確認を実行する。`v`で始まるタグでは、Windows amd64、macOS amd64／arm64、Linux amd64／arm64のアーカイブとSHA-256チェックサムをGitHub Releaseへ追加する。リリースにはリポジトリ既定の`GITHUB_TOKEN`だけを使い、追加のsecretは不要。
+`.github/workflows/ci.yml`はpushとpull requestでフロントエンドのlint・テスト・ビルド、Goのvet・テスト・カバレッジ確認に加え、Windows amd64、macOS amd64／arm64、Linux amd64／arm64でUIなしリモコンをネイティブビルドする。`v`で始まるタグでは、各ランナーのアーカイブとSHA-256チェックサムをGitHub Releaseへ追加する。リリースにはリポジトリ既定の`GITHUB_TOKEN`だけを使い、追加のsecretは不要。
 
 タグ作成前に変更をコミットし、次を実行する。
 

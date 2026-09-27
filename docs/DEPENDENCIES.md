@@ -1,6 +1,6 @@
 # 依存ライブラリの選定
 
-2026年9月時点で公式ドキュメントとリリース情報を確認し、Go 1.27、CGO無効、Windows・macOS・Linuxという条件で選定した。
+2026年9月時点で公式ドキュメントとリリース情報を確認し、Go 1.27、Windows・macOS・Linuxという条件で選定した。サーバーはCGO無効、常駐入力を行うUIなしリモコンだけはCGO有効とする。
 
 | 用途 | 採用 | 理由 |
 | --- | --- | --- |
@@ -9,6 +9,8 @@
 | 検証 | go-playground/validator v10 | 構造体タグで範囲、列挙、件数、色形式をまとめて宣言でき、Ginの依存とも共通化できる |
 | 流量制限 | golang.org/x/time/rate v0.16 | Go公式の拡張パッケージにある並行安全なトークンバケット実装 |
 | システムログ | tint v1.1.3 | 標準 `log/slog` 用の小さなカラー対応ハンドラー。ログ形式とレベル判定を一か所へ集約できる |
+| グローバルキー入力 | gohook v0.42.3 | libuiohookを同梱し、Windows、macOS、Linux X11のキー監視を共通APIで扱える |
+| MIDI入力 | gomidi v2.3.24 + rtmididrv | RtMidiを同梱し、WinMM、CoreMIDI、ALSAのMIDI入力を共通APIで扱える |
 
 React側は固定3画面、単一タイマー、SSE接続一つという規模のため、React Routerや汎用状態管理ライブラリを追加しても既存コードは短くならない。Reactの状態とブラウザ標準のEventSourceを継続使用する。タイマーの楽観的同時実行制御やIdempotency-Keyは製品固有なので、汎用HTTPクライアントへ隠さず`useTimer`に集約する。
 
@@ -23,4 +25,7 @@ UIのエラーメッセージはi18nextの同梱リソースで管理する。�
 - [go-playground/validator](https://github.com/go-playground/validator)
 - [golang.org/x/time/rate](https://pkg.go.dev/golang.org/x/time/rate)
 - [tint](https://github.com/lmittmann/tint)
+- [gohook](https://github.com/robotn/gohook)
+- [gomidi](https://gitlab.com/gomidi/midi)
+- [RtMidi](https://github.com/thestk/rtmidi)
 - [google/renameio](https://github.com/google/renameio)

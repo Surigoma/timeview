@@ -1,7 +1,7 @@
 # TimeView 動作確認結果
 
-- 確認日: 2026-09-27
-- 対象: UIなしリモコンのキーパッド・MIDI対応後
+- 確認日: 2026-09-28
+- 対象: UIなしリモコンのWindows・macOS・Linux対応後
 - 開発環境: Windows amd64、Go 1.27.1、Node.js 24.16.0、npm 11.13.0、Task 3.45.4
 
 ## 自動確認
@@ -10,7 +10,9 @@
 | --- | --- |
 | `task test` | 成功。Goのタイマー・暗転・ブラウザ操作限定・再送抑止・入力検証・JSON設定・SSE・UIなしリモコン、フロントの時間表示・警告・Keypad・MIDI入力判定・割り当て変換テストが成功 |
 | `task lint` | 成功。Go vet、TypeScript型検査、ESLintが成功 |
-| `task release` | 成功。Windows amd64、macOS amd64／arm64、Linux amd64／arm64のサーバーとUIなしリモコンを生成 |
+| `task build` | 成功。Windows amd64のサーバーとCGO有効・C/C++ランタイム静的リンク済みUIなしリモコンを生成 |
+| CGO版CLI | `go vet ./cmd/timeview-remote`と`go test ./cmd/timeview-remote`が成功 |
+| GitHub Actions | Windows amd64、macOS amd64／arm64、Linux amd64／arm64の各ネイティブランナーでCLIをビルドするマトリクスを定義 |
 | OpenAPI | `docs/openapi.json`をJSONとして読み込み、OpenAPI 3.1.0と主要パスの存在を確認 |
 | Docker定義 | `task --list`でDockerタスクとTaskfileを読み込み。DockerイメージのCIビルドを追加 |
 
@@ -34,10 +36,10 @@
 - 実ブラウザの設定画面に復元済みの12分、警告240秒／60秒、表示モード、定型文とJSON保存の案内が表示される。
 - 実ブラウザで「ブラウザからの操作だけを許可」を有効化でき、設定JSONへ保存される。有効中もGETは成功し、外部クライアントの変更要求は403となる。同じブラウザから無効化できる。
 - `timeview-remote.exe`から状態取得、開始、一時停止、暗転、カンペ送信を行い、サーバーの状態と操作ログへ反映される。
-- `timeview-remote.exe listen`がサーバーから割り当てを取得して入力監視を開始する。
-- KORG nanoPAD2を接続するとWinMM MIDI入力1台として認識する。パッドからNote On（channel 1、note 47）を受信し、この入力を開始へ割り当てた`timeview-remote.exe listen`が`OK start`を出力して、サーバー状態が`idle`から`running`へ変化する。
+- gohookとgomidi/rtmididrvを使う`timeview-remote.exe listen`がサーバーから割り当てを取得して入力監視を開始する。
+- KORG nanoPAD2を接続するとRtMidi経由でWinMM MIDI入力1台として認識する。パッドからNote On（channel 1、note 47）を受信し、この入力を開始へ割り当てた`timeview-remote.exe listen`が`OK start`を出力して、サーバー状態が`idle`から`running`へ変化する。
 
-## 生成した配布対象
+## 配布対象
 
 | 対象 | 出力 |
 | --- | --- |
@@ -47,7 +49,7 @@
 | Linux amd64 | `dist/linux-amd64/timeview` |
 | Linux arm64 | `dist/linux-arm64/timeview` |
 
-`dist/`は生成物のためGit管理外。必要な環境で`task release`を実行して再生成する。
+`dist/`は生成物のためGit管理外。ローカルでは`task release`が実行中のOS／CPU向けを生成し、全5対象はGitHub Actionsの各OSネイティブランナーで生成する。
 
 ### バイナリサイズ
 
@@ -64,7 +66,7 @@ Windows amd64のstrip済みバイナリで、Gin既定ビルドと`nomsgpack`ビ
 
 - 物理MIDIコントローラーを使ったChrome／EdgeでのMIDI Learn、Control Change、長押し、抜き差し。UIなしリモコンではnanoPAD2のNote Onと操作反映を確認済み。
 - Dockerが開発環境へ未導入のため、ローカルでのイメージビルドとコンテナ起動。CIの`docker build`とDocker利用環境で確認する。
-- macOS／Linux実機での起動、ブラウザ表示、Keypad入力。クロスコンパイル成功のみ確認済み。
+- macOS／Linux実機でのUIなしリモコンの起動、グローバルキー、MIDI入力。CIのネイティブビルド後に対象実機で確認する。
 - Windows以外のブラウザ、およびWindows上の物理USBテンキー。今回のKeypad確認はブラウザへ送ったテンキーイベントとWindowsキーコード変換の単体テストによる。
 - 分離LAN上の別PC間通信、ファイアウォール設定、50接続時の負荷。
 - 8時間連続運用、複数表示端末間200ms以内、操作反映p95 300ms以内、1時間の経過誤差1秒以内という性能目標。

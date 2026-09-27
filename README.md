@@ -46,13 +46,15 @@ timeview-remote -server http://192.168.1.10:8080 add 60
 timeview-remote -server http://192.168.1.10:8080 blackout
 timeview-remote -server http://192.168.1.10:8080 message "残り5分です"
 timeview-remote -server http://192.168.1.10:8080 preset 1
-# WindowsでキーパッドとMIDIを常時監視
-timeview-remote.exe -server http://192.168.1.10:8080 listen
+# キーパッドとMIDIを常時監視
+timeview-remote -server http://192.168.1.10:8080 listen
 ```
 
 操作は `listen`、`status`、`start`、`pause`、`reset`、`add [秒]`、`subtract [秒]`、`blackout`、`reveal`、`hide`、`show`、`clear`、`message <本文>`、`preset <1～9>` です。終了コードが0なら成功し、通信・入力・APIエラーは日本語で標準エラー出力へ表示します。
 
-Windows版の `listen` はOS全体のキー入力と、リモコンPCへ接続したMIDI入力をブラウザなしで監視します。開始時にTimeViewサーバーから現在のKeypad・MIDI割り当てを取得し、長押しやMIDIの連続値は解放まで1操作として扱います。割り当てを変更した場合は `listen` を再起動してください。終了はCtrl+Cです。macOS／Linux版は1コマンド操作だけに対応します。
+Windows、macOS、Linux版の `listen` はOS全体のキー入力と、リモコンPCへ接続したMIDI入力をブラウザなしで監視します。開始時にTimeViewサーバーから現在のKeypad・MIDI割り当てを取得し、長押しやMIDIの連続値は解放まで1操作として扱います。割り当てを変更した場合は `listen` を再起動してください。終了はCtrl+Cです。macOSでは初回にアクセシビリティの入力監視許可が必要です。LinuxはX11セッションで利用し、Waylandネイティブ環境には対応しません。
+
+Linux版はX11、Xtst、X11-xcb、xcb-xkb、xkbcommon、ALSAのランタイムライブラリを使用します。通常のX11デスクトップには導入済みですが、最小構成の環境ではOSのパッケージ管理から追加してください。
 
 ソースから実行する場合は `task dev:remote -- -server http://127.0.0.1:8080 listen` を使用できます。
 

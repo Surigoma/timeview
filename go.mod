@@ -12,6 +12,8 @@ require (
 	github.com/knadh/koanf/v2 v2.3.7
 	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-isatty v0.0.24
+	github.com/robotn/gohook v0.42.3
+	gitlab.com/gomidi/midi/v2 v2.3.24
 	golang.org/x/time v0.16.0
 )
 
@@ -40,6 +42,7 @@ require (
 	github.com/quic-go/quic-go v0.63.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect
+	github.com/vcaesar/keycode v0.10.1 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.9.1 // indirect
 	golang.org/x/arch v0.31.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect

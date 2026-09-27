@@ -1,9 +1,9 @@
-//go:build !windows
+//go:build !cgo || (!windows && !darwin && !linux)
 
 package main
 
 import "errors"
 
 func startPlatformInputs(chan<- inputEvent) (func(), int, error) {
-	return nil, 0, errors.New("listenによるキーパッド・MIDI入力はWindows版だけに対応しています")
+	return nil, 0, errors.New("listenにはCGO対応版のtimeview-remoteが必要です")
 }
