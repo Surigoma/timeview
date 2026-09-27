@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ControlScreen } from "./ControlScreen";
+import { LogsScreen } from "./LogsScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { Stage } from "./Stage";
 import { TouchScreen } from "./TouchScreen";
@@ -19,7 +20,11 @@ export default function App() {
   const display = location.pathname === "/display";
   const touch = location.pathname === "/touch";
   const [tab, setTab] = useState(
-    location.pathname === "/settings" ? "settings" : "control",
+    location.pathname === "/settings"
+      ? "settings"
+      : location.pathname === "/logs"
+        ? "logs"
+        : "control",
   );
   const [bindings, setBindings] = useState<Binding[]>(() =>
     defaultBindings.map((binding) => ({ ...binding })),
@@ -250,6 +255,16 @@ export default function App() {
         >
           {t("app.settings")}
         </button>
+        <button
+          className={tab === "logs" ? "selected" : ""}
+          onClick={() => {
+            setTab("logs");
+            setKeypad(false);
+            setRecord(null);
+          }}
+        >
+          {t("app.logs")}
+        </button>
         <span>LOCAL / JSON CONFIG</span>
       </nav>
       <main>
@@ -261,7 +276,9 @@ export default function App() {
             <h1>
               {tab === "control"
                 ? t("app.controlHeading")
-                : t("app.settingsHeading")}
+                : tab === "settings"
+                  ? t("app.settingsHeading")
+                  : t("app.logsHeading")}
             </h1>
           </div>
           <p>{t("app.environment")}</p>
@@ -305,6 +322,7 @@ export default function App() {
             setBindings={setBindings}
           />
         )}
+        {tab === "logs" && <LogsScreen language={language} />}
       </main>
       <footer>
         TIMEVIEW <span>{t("app.footer")}</span>

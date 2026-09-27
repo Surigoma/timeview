@@ -3,6 +3,8 @@ package httpserver
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"timeview/internal/auditlog"
 	"timeview/internal/timer"
 )
 
@@ -47,25 +50,118 @@ func (s *Server) getBindings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"bindings": bindings})
 }
 
+func (s *Server) getLogs(c *gin.Context) {
+	if s.audit == nil {
+		c.JSON(http.StatusOK, gin.H{"entries": []auditlog.Entry{}})
+		return
+	}
+	entries, err := s.audit.Read(500)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	for left, right := 0, len(entries)-1; left < right; left, right = left+1, right-1 {
+		entries[left], entries[right] = entries[right], entries[left]
+	}
+	c.JSON(http.StatusOK, gin.H{"entries": entries})
+}
+
 func (s *Server) mutation(persist bool, apply mutationFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method != http.MethodDelete && c.ContentType() != "application/json" {
-			writeError(c, &apiError{Status: 400, Code: "INVALID_CONTENT_TYPE", Message: "Content-Typeはapplication/jsonにしてください"})
+			err := &apiError{Status: 400, Code: "INVALID_CONTENT_TYPE", Message: "Content-Typeはapplication/jsonにしてください"}
+			s.recordOperation(c, nil, err)
+			writeError(c, err)
 			return
 		}
 		data, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, bodyLimit))
 		if err != nil {
-			writeError(c, &apiError{Status: 413, Code: "BODY_TOO_LARGE", Message: "本文は16KiB以内にしてください"})
+			apiErr := &apiError{Status: 413, Code: "BODY_TOO_LARGE", Message: "本文は16KiB以内にしてください"}
+			s.recordOperation(c, nil, apiErr)
+			writeError(c, apiErr)
 			return
 		}
 		body, etag, err := s.mutate(c, persist, apply, data)
 		if err != nil {
+			s.recordOperation(c, data, err)
 			writeError(c, err)
 			return
 		}
+		s.recordOperation(c, data, nil)
 		log.Printf("%s %s ok", c.Request.Method, c.Request.URL.Path)
 		c.Header("ETag", etag)
 		c.Data(http.StatusOK, "application/json; charset=utf-8", body)
+	}
+}
+
+func (s *Server) recordOperation(c *gin.Context, data []byte, operationErr error) {
+	if s.audit == nil {
+		return
+	}
+	entry := auditlog.Entry{
+		Time: s.now(), Type: "operation", Action: auditAction(c.Request.Method, c.Request.URL.Path, data),
+		Result: "success", Method: c.Request.Method, Path: c.Request.URL.Path, Client: c.ClientIP(), StatusCode: http.StatusOK,
+	}
+	if operationErr != nil {
+		entry.Result = "failure"
+		entry.StatusCode = http.StatusInternalServerError
+		var apiErr *apiError
+		if errors.As(operationErr, &apiErr) {
+			entry.StatusCode = apiErr.Status
+			entry.ErrorCode = apiErr.Code
+		} else {
+			entry.ErrorCode = "INTERNAL_ERROR"
+		}
+	}
+	if err := s.audit.Write(entry); err != nil {
+		log.Printf("write operation log: %v", err)
+	}
+}
+
+func auditAction(method, path string, data []byte) string {
+	if method == http.MethodDelete && path == "/api/v1/timer/message" {
+		return "message:clear"
+	}
+	var payload struct {
+		Command string `json:"command"`
+		Delta   int64  `json:"deltaSeconds"`
+		Enabled *bool  `json:"enabled"`
+		Visible *bool  `json:"visible"`
+	}
+	_ = json.Unmarshal(data, &payload)
+	switch path {
+	case "/api/v1/timer/commands":
+		if payload.Command == "adjust" {
+			return fmt.Sprintf("timer:adjust:%+d", payload.Delta)
+		}
+		if payload.Command != "" {
+			return "timer:" + payload.Command
+		}
+		return "timer:command"
+	case "/api/v1/timer/blackout":
+		if payload.Enabled == nil {
+			return "display:blackout"
+		}
+		if *payload.Enabled {
+			return "display:blackout"
+		}
+		return "display:reveal"
+	case "/api/v1/timer/message":
+		if payload.Visible != nil && !*payload.Visible {
+			return "message:hide"
+		}
+		if payload.Visible != nil && *payload.Visible {
+			return "message:show"
+		}
+		return "message:update"
+	case "/api/v1/timer/presets":
+		return "settings:presets"
+	case "/api/v1/timer/bindings":
+		return "settings:bindings"
+	case "/api/v1/timer":
+		return "settings:timer"
+	default:
+		return method + " " + path
 	}
 }
 

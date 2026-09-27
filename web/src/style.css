@@ -577,6 +577,31 @@ footer span {
 .touch-footer a {
   color: var(--muted);
 }
+.logs-table-wrap {
+  overflow-x: auto;
+}
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.logs-table th,
+.logs-table td {
+  padding: 11px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.logs-table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.logs-table .success {
+  color: var(--accent);
+}
+.logs-table .failure {
+  color: #ff8b91;
+}
 .stage {
   container-type: inline-size;
   position: relative;

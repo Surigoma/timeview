@@ -12,6 +12,8 @@ Windowsでは `dist/windows-amd64/timeview.exe` を実行して、[操作画面]
 .\dist\windows-amd64\timeview.exe -listen 0.0.0.0:8080
 # 設定ファイルの保存先を指定する場合
 .\dist\windows-amd64\timeview.exe -config C:\TimeView\config.json
+# 操作ログの保存先を指定する場合
+.\dist\windows-amd64\timeview.exe -audit-log C:\TimeView\operations.jsonl
 ```
 
 macOS / Linuxでは対象CPUの `dist/darwin-arm64/timeview` 等を実行します。
@@ -32,6 +34,10 @@ chmod +x ./timeview
 JSONを手作業で編集する場合はTimeViewを終了してから変更し、再起動してください。不明な項目、値の不整合、未対応の設定バージョンがある場合は、安全のため起動を中止してエラーを表示します。再起動後も設定は復元しますが、残り時間、計測状態、暗転解除、送信中のカンペは復元せず、待機・暗転ONから始まります。
 
 設定画面の「ブラウザからの操作だけを許可」を有効にすると、外部APIのGET・SSEは利用できますが、変更要求は403になります。操作画面と、その画面で有効にしたKeypadからは引き続き操作できます。この機能は分離LAN内の誤操作防止用で、認証機能ではありません。
+
+## 操作ログ
+
+起動、終了、異常終了、操作の成否を既定の`timeview-operations.jsonl`へJSON Lines形式で記録します。操作画面の「操作ログ」から最新500件を確認できます。カンペ本文は記録しません。保存先は`-audit-log`で変更できます。
 
 ## Keypad
 

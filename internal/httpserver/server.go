@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"timeview/internal/auditlog"
 	"timeview/internal/timer"
 )
 
@@ -22,7 +23,10 @@ type Server struct {
 	now        func() time.Time
 	handler    http.Handler
 	handlerOne sync.Once
+	audit      *auditlog.Log
 }
+
+func (s *Server) SetAuditLog(log *auditlog.Log) { s.audit = log }
 
 func prepareGin() {
 	configureGin.Do(func() {
@@ -53,6 +57,7 @@ func (s *Server) Register(api *gin.RouterGroup) {
 	api.GET("/timer/events", s.events)
 	api.GET("/timer/presets", s.getPresets)
 	api.GET("/timer/bindings", s.getBindings)
+	api.GET("/logs", s.getLogs)
 	api.PATCH("/timer", s.mutation(true, updateSettings))
 	api.POST("/timer/commands", s.mutation(false, runCommand))
 	api.PUT("/timer/blackout", s.mutation(false, updateBlackout))

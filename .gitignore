@@ -3,4 +3,5 @@
 /web/node_modules/
 /.task/
 *.log
+*.jsonl
 /timeview-config.json

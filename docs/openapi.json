@@ -1221,10 +1221,88 @@
           }
         }
       }
+    },
+    "/logs": {
+      "get": {
+        "operationId": "listOperationLogs",
+        "responses": {
+          "200": {
+            "description": "操作・プロセスログの最新500件（新しい順）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "entries"
+                  ],
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "maxItems": 500,
+                      "items": {
+                        "$ref": "#/components/schemas/AuditEntry"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AuditEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "time",
+          "type",
+          "action",
+          "result"
+        ],
+        "properties": {
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "process",
+              "operation"
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "client": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "errorCode": {
+            "type": "string"
+          }
+        }
+      },
       "Timer": {
         "type": "object",
         "additionalProperties": false,

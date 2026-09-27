@@ -67,7 +67,11 @@ func (s *Server) rateLimit() gin.HandlerFunc {
 		}
 		s.mu.Unlock()
 		if !allowed {
-			writeError(c, &apiError{Status: 429, Code: "RATE_LIMITED", Message: "操作間隔を空けて再試行してください"})
+			err := &apiError{Status: 429, Code: "RATE_LIMITED", Message: "操作間隔を空けて再試行してください"}
+			if c.Request.Method != http.MethodGet {
+				s.recordOperation(c, nil, err)
+			}
+			writeError(c, err)
 			c.Abort()
 			return
 		}
