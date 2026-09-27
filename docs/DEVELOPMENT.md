@@ -31,6 +31,18 @@ task release
 - 本番実行時はGo、Node.js、Task、DBを必要としない。
 - 生成物は`dist/`へ出力し、Gitには追加しない。
 
+## GitHub Actionsとリリース
+
+`.github/workflows/ci.yml`はpushとpull requestでフロントエンドのlint・テスト・ビルド、Goのvet・テスト・カバレッジ確認を実行する。`v`で始まるタグでは、Windows amd64、macOS amd64／arm64、Linux amd64／arm64のアーカイブとSHA-256チェックサムをGitHub Releaseへ追加する。リリースにはリポジトリ既定の`GITHUB_TOKEN`だけを使い、追加のsecretは不要。
+
+タグ作成前に変更をコミットし、次を実行する。
+
+```sh
+task release:tag VERSION=1.0.0
+```
+
+このタスクは追跡中ファイルの未コミット差分がないことを確認し、lintとテストに成功した後、注釈付き`v1.0.0`タグを作成して`origin`へpushする。タグやGitHub Releaseを作り直す処理は行わない。
+
 ## API利用例
 
 PowerShell:

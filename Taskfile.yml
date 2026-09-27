@@ -69,3 +69,14 @@ tasks:
         vars: { TARGET_OS: linux, TARGET_ARCH: amd64 }
       - task: binary
         vars: { TARGET_OS: linux, TARGET_ARCH: arm64 }
+  release:tag:
+    desc: Validate, create vVERSION tag and push it to trigger a GitHub release
+    requires:
+      vars: [VERSION]
+    cmds:
+      - git diff --exit-code
+      - git diff --cached --exit-code
+      - task lint
+      - task test
+      - git tag --annotate "v{{.VERSION}}" --message "v{{.VERSION}}"
+      - git push origin "v{{.VERSION}}"
