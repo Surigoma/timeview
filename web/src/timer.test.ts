@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { operationError } from "./i18n.ts";
+import { operationError, setLanguage } from "./i18n.ts";
 import {
+  bindingLabel,
   formatTime,
   matches,
   defaultBindings,
@@ -115,4 +116,22 @@ test("key bindings round-trip without persisting presentation labels", () => {
   assert.equal("label" in stored[0], false);
   assert.equal(restoreBindings(stored)[0].code, "KeyS");
   assert.equal(restoreBindings(stored)[0].label, "開始 / 再開");
+});
+test("English localizes timer and binding labels", () => {
+  setLanguage("en");
+  assert.equal(bindingLabel("start", "en"), "Start / Resume");
+  assert.equal(
+    phase(
+      {
+        state: "idle",
+        language: "en",
+        warning1Seconds: 0,
+        warning2Seconds: 0,
+        colors: { normal: "n", warning1: "1", warning2: "2", overtime: "o" },
+      } as TimerState,
+      1000,
+    ).label,
+    "Idle",
+  );
+  setLanguage("ja");
 });

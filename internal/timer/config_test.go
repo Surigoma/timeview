@@ -1,6 +1,8 @@
 package timer
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,11 +17,11 @@ func TestConfigRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	duration, warning1, warning2 := int64(900), int64(300), int64(90)
-	displayMode, flash, browserOnly := "message", true, true
+	displayMode, language, flash, browserOnly := "message", "en", true, true
 	colors := Colors{"#010203", "#112233", "#223344", "#334455"}
 	if err := model.Configure(Settings{
 		Duration: &duration, Warning1: &warning1, Warning2: &warning2,
-		DisplayMode: &displayMode, Flash: &flash, BrowserOnly: &browserOnly, Colors: &colors,
+		DisplayMode: &displayMode, Language: &language, Flash: &flash, BrowserOnly: &browserOnly, Colors: &colors,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +40,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	if loaded.Duration != duration || loaded.Remaining != duration*1000 || loaded.Warning1 != warning1 || loaded.Warning2 != warning2 {
 		t.Fatalf("timer settings were not restored: %+v", loaded.State)
 	}
-	if loaded.DisplayMode != displayMode || !loaded.Flash || !loaded.BrowserOnly || loaded.Colors != colors {
+	if loaded.DisplayMode != displayMode || loaded.Language != language || !loaded.Flash || !loaded.BrowserOnly || loaded.Colors != colors {
 		t.Fatalf("display settings were not restored: %+v", loaded.State)
 	}
 	if presets := loaded.Presets(); len(presets) != 2 || presets[0] != "five minutes" {
@@ -46,6 +48,37 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 	if got := loaded.Bindings(); got[0].Code != "KeyS" {
 		t.Fatalf("bindings were not restored: %#v", got[0])
+	}
+}
+
+func TestConfigWithoutLanguageDefaultsToJapanese(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "timeview-config.json")
+	model, err := Load(path, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	delete(config["timer"].(map[string]any), "language")
+	data, err = json.Marshal(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Language != "ja" || model.Language != "ja" {
+		t.Fatalf("legacy config language = %q", loaded.Language)
 	}
 }
 

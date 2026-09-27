@@ -1,14 +1,9 @@
 import { useState } from "react";
+import { t } from "./i18n";
 import { Stage } from "./Stage";
-import { formatTime, keyLabel, phase } from "./timer";
+import { bindingLabel, formatTime, keyLabel, phase } from "./timer";
 import type { Binding } from "./timer";
 import type { TimerConnection } from "./useTimer";
-
-const stateNames = {
-  idle: "待機中",
-  running: "計測中",
-  paused: "一時停止",
-};
 
 export function ControlScreen({
   timer,
@@ -31,8 +26,8 @@ export function ControlScreen({
     <div className="control-grid">
       <section className="panel timer-panel">
         <div className="panel-title">
-          <h2>タイマー</h2>
-          <span className="badge">{stateNames[state.state]}</span>
+          <h2>{t("control.timer")}</h2>
+          <span className="badge">{t(`timer.${state.state}`)}</span>
         </div>
         <div
           className="operator-time"
@@ -41,7 +36,11 @@ export function ControlScreen({
           {formatTime(timer.remaining)}
         </div>
         <div className="timer-meta">
-          <span>持ち時間 {formatTime(state.durationSeconds * 1000)}</span>
+          <span>
+            {t("control.duration", {
+              time: formatTime(state.durationSeconds * 1000),
+            })}
+          </span>
           <span>{phase(state, timer.remaining).label}</span>
         </div>
         <div className="progress">
@@ -60,23 +59,26 @@ export function ControlScreen({
             className="primary"
             onClick={() => void timer.send("/commands", { command: "start" })}
           >
-            ▶ {state.state === "paused" ? "再開" : "開始"}
+            ▶{" "}
+            {state.state === "paused"
+              ? t("actions.resume")
+              : t("actions.startOnly")}
           </button>
           <button
             onClick={() => void timer.send("/commands", { command: "pause" })}
           >
-            Ⅱ 一時停止
+            Ⅱ {t("actions.pause")}
           </button>
           <button
             onClick={() => {
               if (
                 state.state !== "running" ||
-                confirm("タイマーを停止し、持ち時間に戻しますか？")
+                confirm(t("control.resetConfirm"))
               )
                 void timer.send("/commands", { command: "reset" });
             }}
           >
-            ↺ リセット
+            ↺ {t("actions.reset")}
           </button>
           <button
             onClick={() =>
@@ -86,7 +88,7 @@ export function ControlScreen({
               })
             }
           >
-            −1分
+            {t("actions.subtract")}
           </button>
           <button
             onClick={() =>
@@ -96,13 +98,17 @@ export function ControlScreen({
               })
             }
           >
-            ＋1分
+            {t("actions.add")}
           </button>
         </fieldset>
         <div className={`blackout-control ${state.blackout ? "active" : ""}`}>
           <div>
-            <strong>{state.blackout ? "● 暗転中" : "○ 演台表示中"}</strong>
-            <p>暗転中も計測を継続します</p>
+            <strong>
+              {state.blackout
+                ? t("control.blackoutOn")
+                : t("control.displayOn")}
+            </strong>
+            <p>{t("control.blackoutContinues")}</p>
           </div>
           <fieldset disabled={!timer.connected || timer.busy}>
             <button
@@ -111,21 +117,21 @@ export function ControlScreen({
                 void timer.send("/blackout", { enabled: true }, "PUT")
               }
             >
-              暗転
+              {t("actions.blackout")}
             </button>
             <button
               onClick={() =>
                 void timer.send("/blackout", { enabled: false }, "PUT")
               }
             >
-              暗転解除
+              {t("actions.reveal")}
             </button>
           </fieldset>
         </div>
       </section>
       <section className="panel preview-panel">
         <div className="panel-title">
-          <h2>演台プレビュー</h2>
+          <h2>{t("control.preview")}</h2>
           <span className="badge">{state.blackout ? "BLACKOUT" : "LIVE"}</span>
         </div>
         <Stage
@@ -137,32 +143,26 @@ export function ControlScreen({
         />
         <p className="hint">
           {state.blackout
-            ? "演台は黒一色です。暗転解除で現在の内容を表示します。"
-            : "すべての演台画面に同じ内容を表示しています。"}
+            ? t("control.previewBlackout")
+            : t("control.previewLive")}
         </p>
-        {overflow && (
-          <p className="warning">
-            カンペが領域に収まりません。短く編集してください。
-          </p>
-        )}
+        {overflow && <p className="warning">{t("control.overflow")}</p>}
       </section>
       <MessagePanel timer={timer} presets={presets} />
       <section className="panel">
         <div className="panel-title">
           <h2>Keypad</h2>
           <span className={`badge ${keypad ? "accent" : ""}`}>
-            {keypad ? "有効" : "OFF"}
+            {keypad ? t("common.enabled") : t("common.off")}
           </span>
         </div>
-        <p className="hint">
-          この画面を前面にして操作します。フォーカスが外れるとOFFになります。
-        </p>
+        <p className="hint">{t("control.keypadHint")}</p>
         <button
           disabled={!timer.connected}
           className={keypad ? "primary" : ""}
           onClick={() => setKeypad(!keypad)}
         >
-          {keypad ? "Keypadを無効にする" : "Keypadを有効にする"}
+          {keypad ? t("control.disableKeypad") : t("control.enableKeypad")}
         </button>
         <p aria-live="polite" className="last-key">
           {lastKey}
@@ -170,7 +170,7 @@ export function ControlScreen({
         <div className="key-summary">
           {bindings.slice(0, 4).map((binding) => (
             <div key={binding.action}>
-              <span>{binding.label}</span>
+              <span>{bindingLabel(binding.action)}</span>
               <kbd>{keyLabel(binding)}</kbd>
             </div>
           ))}
@@ -193,51 +193,53 @@ function MessagePanel({
   return (
     <section className="panel message-panel">
       <div className="panel-title">
-        <h2>カンペ</h2>
+        <h2>{t("control.message")}</h2>
         <span className="badge">
-          {state.message.visible ? "表示設定 ON" : "非表示"}
+          {state.message.visible
+            ? t("control.messageVisible")
+            : t("control.hidden")}
         </span>
       </div>
-      <label htmlFor="message">送信するメッセージ</label>
+      <label htmlFor="message">{t("control.messageLabel")}</label>
       <textarea
         id="message"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         rows={3}
-        placeholder="登壇者へのメッセージを入力"
+        placeholder={t("control.messagePlaceholder")}
       />
       <div className="message-toolbar">
         <span className={count > 500 ? "warning" : "hint"}>
-          {count} / 500文字 · 未送信
+          {t("control.draftCount", { count })}
         </span>
         <button
           className="primary"
           disabled={!timer.connected || timer.busy || count > 500}
           onClick={() => void timer.send("/message", { text: draft }, "PUT")}
         >
-          送信 ↗
+          {t("control.send")}
         </button>
       </div>
       <div className="sent-message">
-        <span>送信済み</span>
-        <p>{state.message.text || "まだ送信していません"}</p>
+        <span>{t("control.sent")}</span>
+        <p>{state.message.text || t("control.notSent")}</p>
       </div>
       <fieldset disabled={!timer.connected || timer.busy}>
         <button
           onClick={() => void timer.send("/message", { visible: false }, "PUT")}
         >
-          非表示
+          {t("control.hidden")}
         </button>
         <button
           disabled={!state.message.text}
           onClick={() => void timer.send("/message", { visible: true }, "PUT")}
         >
-          再表示
+          {t("control.showAgain")}
         </button>
         <button
           onClick={() => void timer.send("/message", undefined, "DELETE")}
         >
-          消去
+          {t("actions.clear")}
         </button>
       </fieldset>
       {presets.some(Boolean) && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { operationError } from "./i18n";
+import { operationError, setLanguage, t } from "./i18n";
 import type { TimerState } from "./timer";
 import { requestID } from "./timer";
 
@@ -18,6 +18,7 @@ export function useTimer() {
   const generation = useRef(0);
 
   const accept = useCallback((next: TimerState) => {
+    setLanguage(next.language);
     const prev = current.current;
     if (
       prev &&
@@ -29,9 +30,7 @@ export function useTimer() {
       return;
     if (prev && prev.instanceId !== next.instanceId) {
       generation.current++;
-      setNotice(
-        "サーバーが再起動しました。保存済み設定を読み込み、タイマーを待機・暗転へ戻しました。",
-      );
+      setNotice(t("notices.restarted"));
     }
     current.current = next;
     baseline.current = {

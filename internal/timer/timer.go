@@ -31,6 +31,7 @@ type State struct {
 	Warning2    int64   `json:"warning2Seconds"`
 	Message     Message `json:"message"`
 	DisplayMode string  `json:"displayMode"`
+	Language    string  `json:"language"`
 	Blackout    bool    `json:"blackout"`
 	Flash       bool    `json:"flash"`
 	BrowserOnly bool    `json:"browserOnly"`
@@ -51,7 +52,7 @@ func New(now time.Time) Model {
 	}
 	return Model{State: State{
 		InstanceID: hex.EncodeToString(id), Status: "idle", Duration: 600, Remaining: 600000,
-		Warning1: 180, Warning2: 60, Blackout: true, DisplayMode: "timer_and_message",
+		Warning1: 180, Warning2: 60, Blackout: true, DisplayMode: "timer_and_message", Language: "ja",
 		Colors: Colors{"#4b5263", "#f2cc60", "#ff9854", "#ff6069"},
 	}, anchor: now, presets: []string{}, bindings: defaultBindings()}
 }
@@ -127,6 +128,7 @@ type Settings struct {
 	Warning1    *int64  `json:"warning1Seconds,omitempty"`
 	Warning2    *int64  `json:"warning2Seconds,omitempty"`
 	DisplayMode *string `json:"displayMode,omitempty"`
+	Language    *string `json:"language,omitempty"`
 	Flash       *bool   `json:"flash,omitempty"`
 	BrowserOnly *bool   `json:"browserOnly,omitempty"`
 	Colors      *Colors `json:"colors,omitempty"`
@@ -158,6 +160,12 @@ func (m *Model) Configure(p Settings) error {
 		default:
 			return Invalid("表示モードが不正です")
 		}
+	}
+	if p.Language != nil {
+		if *p.Language != "ja" && *p.Language != "en" {
+			return Invalid("言語はjaまたはenを指定してください")
+		}
+		m.Language = *p.Language
 	}
 	if p.Flash != nil {
 		m.Flash = *p.Flash

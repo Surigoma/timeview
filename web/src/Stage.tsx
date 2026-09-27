@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
+import { t } from "./i18n";
 import {
   elapsedPercent,
   foregroundColor,
@@ -67,6 +68,7 @@ export function Stage({
     state.warning1Seconds,
     state.warning2Seconds,
     remaining,
+    state.language,
   );
   return (
     <div
@@ -104,7 +106,7 @@ export function Stage({
             </div>
           )}
           {!connected && (
-            <span className="stage-offline">接続待ち · 推定表示</span>
+            <span className="stage-offline">{t("stage.offline")}</span>
           )}
           <div className="gauge-block">
             {gauge.next && (
@@ -116,14 +118,14 @@ export function Stage({
             <div
               className="elapsed-gauge"
               role="progressbar"
-              aria-label="警告領域付き経過時間"
+              aria-label={t("stage.gauge")}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(elapsed)}
               aria-valuetext={
                 gauge.next
                   ? `${gauge.next.label} ${formatTime(gauge.next.remainingMs)}`
-                  : "終了時刻を超過"
+                  : t("stage.overtime")
               }
             >
               <div
@@ -147,7 +149,7 @@ export function Stage({
                   .catch(() => {});
               }}
             >
-              全画面表示
+              {t("stage.fullscreen")}
             </button>
           )}
         </>

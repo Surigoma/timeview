@@ -515,7 +515,10 @@ footer span {
 }
 .touch-time {
   margin: 18px 0 6px;
-  font: clamp(58px, 10vw, 112px) ui-monospace, Consolas, monospace;
+  font:
+    clamp(58px, 10vw, 112px) ui-monospace,
+    Consolas,
+    monospace;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: -0.06em;

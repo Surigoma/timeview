@@ -1,6 +1,12 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { defaultBindings, keyLabel, storeBindings } from "./timer";
+import { t } from "./i18n";
+import {
+  bindingLabel,
+  defaultBindings,
+  keyLabel,
+  storeBindings,
+} from "./timer";
 import type { Binding, TimerState } from "./timer";
 import type { TimerConnection } from "./useTimer";
 
@@ -25,9 +31,9 @@ export function SettingsScreen({
     // LAN HTTP may not provide navigator.clipboard; the manual field remains usable.
     try {
       await navigator.clipboard.writeText(text);
-      setToast("コピーしました");
+      setToast(t("settings.copied"));
     } catch {
-      setToast("下のURLを選択してコピーしてください");
+      setToast(t("settings.copyFallback"));
     }
     setTimeout(() => setToast(""), 3000);
   };
@@ -37,7 +43,7 @@ export function SettingsScreen({
       <PresetEditor timer={timer} presets={presets} />
       <section className="panel">
         <div className="panel-title">
-          <h2>キー割り当て</h2>
+          <h2>{t("settings.bindings")}</h2>
           <button
             className="small"
             onClick={() => {
@@ -52,21 +58,21 @@ export function SettingsScreen({
               setRecord(null);
             }}
           >
-            既定に戻す
+            {t("settings.defaults")}
           </button>
         </div>
-        <p className="hint">
-          変更を押してキーを入力。Escでキャンセル。変更はJSON設定へ保存します。
-        </p>
+        <p className="hint">{t("settings.bindingHint")}</p>
         <div className="bindings">
           {bindings.map((binding) => (
             <div key={binding.action}>
-              <span>{binding.label}</span>
+              <span>{bindingLabel(binding.action)}</span>
               <button
                 className="small"
                 onClick={() => setRecord(binding.action)}
               >
-                {record === binding.action ? "キーを入力…" : keyLabel(binding)}
+                {record === binding.action
+                  ? t("settings.enterKey")
+                  : keyLabel(binding)}
               </button>
             </div>
           ))}
@@ -74,18 +80,18 @@ export function SettingsScreen({
       </section>
       <section className="panel">
         <div className="panel-title">
-          <h2>外部連携</h2>
+          <h2>{t("settings.integration")}</h2>
           <span className="badge">
-            {state.browserOnly ? "参照のみ" : "HTTP"}
+            {state.browserOnly ? t("settings.readOnly") : "HTTP"}
           </span>
         </div>
         <p className="hint">
           {state.browserOnly
-            ? "ブラウザ操作限定中。外部連携では状態取得とSSEだけを利用できます。"
-            : "認証不要。同じ分離ネットワークから操作できます。"}
+            ? t("settings.integrationReadOnly")
+            : t("settings.integrationOpen")}
         </p>
         <label>
-          演台URL
+          {t("settings.displayURL")}
           <input
             readOnly
             value={`${location.origin}/display`}
@@ -96,10 +102,10 @@ export function SettingsScreen({
           className="small"
           onClick={() => void copy(`${location.origin}/display`)}
         >
-          URLをコピー
+          {t("settings.copyURL")}
         </button>
         <label>
-          タイマーAPI
+          {t("settings.timerAPI")}
           <input
             readOnly
             value={`${location.origin}/api/v1/timer`}
@@ -109,12 +115,10 @@ export function SettingsScreen({
         <p aria-live="polite">{toast}</p>
         <pre>
           {state.browserOnly
-            ? "GET /api/v1/timer\nGET /api/v1/timer/events\n\n変更API: 403 BROWSER_ONLY"
+            ? t("settings.readOnlyExample")
             : 'PUT /api/v1/timer/blackout\nContent-Type: application/json\n\n{"enabled": true}'}
         </pre>
-        <p className="hint">
-          設定・定型文・キー割り当てはJSONへ保存します。再起動時も暗転はONです。
-        </p>
+        <p className="hint">{t("settings.persistence")}</p>
       </section>
     </div>
   );
@@ -134,6 +138,7 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
       warning1Seconds: state.warning1Seconds,
       warning2Seconds: state.warning2Seconds,
       displayMode: state.displayMode,
+      language: state.language,
       flash: state.flash,
       browserOnly: state.browserOnly,
       colors: state.colors,
@@ -149,8 +154,10 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
   return (
     <section className="panel">
       <div className="panel-title">
-        <h2>タイマー・表示設定</h2>
-        <span className="badge">{editing ? "編集中" : "同期済み"}</span>
+        <h2>{t("settings.timerDisplay")}</h2>
+        <span className="badge">
+          {editing ? t("common.edit") : t("common.synced")}
+        </span>
       </div>
       <form onSubmit={(event) => void submit(event)}>
         <fieldset
@@ -158,8 +165,14 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
           className="form-fields"
         >
           <div className="duration-fields">
-            <span>持ち時間（待機中のみ変更可能）</span>
-            {(["時", "分", "秒"] as const).map((label, index) => {
+            <span>{t("settings.duration")}</span>
+            {(
+              [
+                t("settings.hour"),
+                t("settings.minute"),
+                t("settings.second"),
+              ] as const
+            ).map((label, index) => {
               const parts = [
                 Math.floor(state.durationSeconds / 3600),
                 Math.floor(state.durationSeconds / 60) % 60,
@@ -189,7 +202,7 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
           </div>
           <div className="two-columns">
             <label>
-              第1警告（残り秒）
+              {t("settings.warning1")}
               <input
                 type="number"
                 min={0}
@@ -202,7 +215,7 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
               />
             </label>
             <label>
-              第2警告（残り秒）
+              {t("settings.warning2")}
               <input
                 type="number"
                 min={0}
@@ -216,7 +229,7 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
             </label>
           </div>
           <label>
-            表示モード
+            {t("settings.displayMode")}
             <select
               value={state.displayMode}
               onChange={(event) =>
@@ -225,16 +238,39 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
                 })
               }
             >
-              <option value="timer_and_message">タイマー＋カンペ</option>
-              <option value="timer">タイマーのみ</option>
-              <option value="message">カンペのみ</option>
+              <option value="timer_and_message">
+                {t("settings.timerMessage")}
+              </option>
+              <option value="timer">{t("settings.timerOnly")}</option>
+              <option value="message">{t("settings.messageOnly")}</option>
+            </select>
+          </label>
+          <label>
+            {t("settings.language")}
+            <select
+              value={state.language}
+              onChange={(event) =>
+                update({
+                  language: event.target.value as TimerState["language"],
+                })
+              }
+            >
+              <option value="ja">{t("settings.japanese")}</option>
+              <option value="en">{t("settings.english")}</option>
             </select>
           </label>
           <div className="colors">
             {(["normal", "warning1", "warning2", "overtime"] as const).map(
               (key, index) => (
                 <label key={key}>
-                  {["通常", "第1警告", "第2警告", "時間超過"][index]}
+                  {
+                    [
+                      t("settings.normal"),
+                      t("timer.warning1"),
+                      t("timer.warning2"),
+                      t("settings.overtime"),
+                    ][index]
+                  }
                   <input
                     type="color"
                     value={state.colors[key]}
@@ -254,7 +290,7 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
               checked={state.flash}
               onChange={(event) => update({ flash: event.target.checked })}
             />
-            時間超過時にゆっくり点滅
+            {t("settings.flash")}
           </label>
           <label className="checkbox">
             <input
@@ -264,24 +300,20 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
                 update({ browserOnly: event.target.checked })
               }
             />
-            ブラウザからの操作だけを許可
+            {t("settings.browserOnly")}
           </label>
-          <p className="hint">
-            有効時も外部APIからの状態取得は可能ですが、変更操作は拒否します。
-          </p>
+          <p className="hint">{t("settings.browserOnlyHint")}</p>
           <div>
             <button type="submit" className="primary">
-              設定を反映
+              {t("settings.apply")}
             </button>
             <button type="button" onClick={() => setEditing(null)}>
-              最新の設定を読み直す
+              {t("settings.reload")}
             </button>
           </div>
         </fieldset>
       </form>
-      <p className="hint">
-        設定が競合した場合は読み直してから再編集してください。
-      </p>
+      <p className="hint">{t("settings.conflict")}</p>
     </section>
   );
 }
@@ -299,17 +331,17 @@ function PresetEditor({
   return (
     <section className="panel">
       <div className="panel-title">
-        <h2>定型文</h2>
-        <span className="badge">最大9件</span>
+        <h2>{t("settings.presets")}</h2>
+        <span className="badge">{t("settings.presetLimit")}</span>
       </div>
-      <p className="hint">ボタン・テンキーから即時送信するメッセージです。</p>
+      <p className="hint">{t("settings.presetHint")}</p>
       <div className="preset-editor">
         {values.map((text, index) => (
           <label key={index}>
             <kbd>{index + 1}</kbd>
             <input
               value={text}
-              placeholder={`定型文 ${index + 1}`}
+              placeholder={t("actions.preset", { number: index + 1 })}
               onChange={(event) => {
                 const next = [...values];
                 next[index] = event.target.value;
@@ -332,9 +364,9 @@ function PresetEditor({
           });
         }}
       >
-        定型文を反映
+        {t("settings.applyPresets")}
       </button>
-      <button onClick={() => setDraft(null)}>編集を戻す</button>
+      <button onClick={() => setDraft(null)}>{t("settings.undo")}</button>
     </section>
   );
 }

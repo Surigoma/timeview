@@ -3,7 +3,9 @@ import { ControlScreen } from "./ControlScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { Stage } from "./Stage";
 import { TouchScreen } from "./TouchScreen";
+import { setLanguage, t } from "./i18n";
 import {
+  bindingLabel,
   defaultBindings,
   matches,
   restoreBindings,
@@ -23,13 +25,19 @@ export default function App() {
     defaultBindings.map((binding) => ({ ...binding })),
   );
   const [keypad, setKeypad] = useState(false);
-  const [lastKey, setLastKey] = useState("入力待ち");
+  const [lastKey, setLastKey] = useState(t("app.inputWaiting"));
   const [presets, setPresets] = useState<string[]>([]);
   const [record, setRecord] = useState<string | null>(null);
   const lastInput = useRef({ action: "", at: 0 });
   const configGeneration = useRef(0);
   const boot = timer.state?.instanceId;
   const version = timer.state?.version;
+  const language = timer.state?.language ?? "ja";
+
+  useEffect(() => {
+    setLanguage(language);
+    setLastKey(t("app.inputWaiting"));
+  }, [language]);
 
   useEffect(() => {
     if (display || !boot) return;
@@ -174,7 +182,9 @@ export default function App() {
         return timer.send("/commands", { command: action });
       };
       void sendAction().then((ok) =>
-        setLastKey(`${binding.label} · ${ok ? "実行済み" : "未実行"}`),
+        setLastKey(
+          `${bindingLabel(binding.action)} · ${ok ? t("app.executed") : t("app.notExecuted")}`,
+        ),
       );
     };
     window.addEventListener("keydown", handler);
@@ -205,10 +215,10 @@ export default function App() {
         <div className="header-right">
           <span className={`connection ${timer.connected ? "online" : ""}`}>
             <i />
-            {timer.connected ? "接続中" : "接続待ち"}
+            {timer.connected ? t("common.connected") : t("common.connecting")}
           </span>
           <a className="button small" href="/touch">
-            タッチ操作
+            {t("app.touch")}
           </a>
           <a
             className="button small"
@@ -216,11 +226,11 @@ export default function App() {
             target="_blank"
             rel="noreferrer"
           >
-            演台画面を開く ↗
+            {t("app.openDisplay")}
           </a>
         </div>
       </header>
-      <nav aria-label="メイン">
+      <nav aria-label={t("app.mainNav")}>
         <button
           className={tab === "control" ? "selected" : ""}
           onClick={() => {
@@ -229,7 +239,7 @@ export default function App() {
             setRecord(null);
           }}
         >
-          タイマー操作
+          {t("app.control")}
         </button>
         <button
           className={tab === "settings" ? "selected" : ""}
@@ -238,7 +248,7 @@ export default function App() {
             setKeypad(false);
           }}
         >
-          設定・外部連携
+          {t("app.settings")}
         </button>
         <span>LOCAL / JSON CONFIG</span>
       </nav>
@@ -250,11 +260,11 @@ export default function App() {
             </p>
             <h1>
               {tab === "control"
-                ? "上映を、静かに支える。"
-                : "操作環境を整える。"}
+                ? t("app.controlHeading")
+                : t("app.settingsHeading")}
             </h1>
           </div>
-          <p>単一タイマー · 分離ネットワーク</p>
+          <p>{t("app.environment")}</p>
         </div>
         {timer.notice && (
           <div role="status" className="notice">
@@ -264,13 +274,13 @@ export default function App() {
         {timer.error && (
           <div role="alert" className="error">
             {timer.error}
-            <button onClick={() => timer.setError("")}>閉じる</button>
+            <button onClick={() => timer.setError("")}>
+              {t("common.close")}
+            </button>
           </div>
         )}
         {!timer.connected && (
-          <div className="notice">
-            サーバーに接続しています。接続が戻るまで操作できません。
-          </div>
+          <div className="notice">{t("app.reconnecting")}</div>
         )}
         {timer.state && tab === "control" && (
           <ControlScreen
@@ -297,7 +307,7 @@ export default function App() {
         )}
       </main>
       <footer>
-        TIMEVIEW <span>HTTP · オフライン運用 / 設定はJSON保存</span>
+        TIMEVIEW <span>{t("app.footer")}</span>
       </footer>
     </div>
   );

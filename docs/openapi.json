@@ -209,6 +209,13 @@
                       "message"
                     ]
                   },
+                  "language": {
+                    "type": "string",
+                    "enum": [
+                      "ja",
+                      "en"
+                    ]
+                  },
                   "flash": {
                     "type": "boolean"
                   },
@@ -1232,6 +1239,7 @@
           "warning2Seconds",
           "message",
           "displayMode",
+          "language",
           "blackout",
           "flash",
           "browserOnly",
@@ -1296,6 +1304,14 @@
               "timer_and_message",
               "message"
             ]
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ja",
+              "en"
+            ],
+            "default": "ja"
           },
           "blackout": {
             "type": "boolean",

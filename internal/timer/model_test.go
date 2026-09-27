@@ -58,6 +58,7 @@ func TestConfigureValidation(t *testing.T) {
 		{"duration while active", func(m *Model) { m.Status = "running" }, Settings{Duration: int64Pointer(30)}},
 		{"warning order", nil, Settings{Warning1: int64Pointer(30)}},
 		{"display mode", nil, Settings{DisplayMode: stringPointer("clock")}},
+		{"language", nil, Settings{Language: stringPointer("fr")}},
 		{"short color", nil, Settings{Colors: &Colors{Normal: "#fff", Warning1: "#112233", Warning2: "#223344", Overtime: "#334455"}}},
 		{"invalid color", nil, Settings{Colors: &Colors{Normal: "#xxxxxx", Warning1: "#112233", Warning2: "#223344", Overtime: "#334455"}}},
 	} {
@@ -74,11 +75,11 @@ func TestConfigureValidation(t *testing.T) {
 
 	m := New(now)
 	colors := Colors{"#010203", "#112233", "#223344", "#334455"}
-	input := Settings{DisplayMode: stringPointer("message"), Flash: boolPointer(true), BrowserOnly: boolPointer(true), Colors: &colors}
+	input := Settings{DisplayMode: stringPointer("message"), Language: stringPointer("en"), Flash: boolPointer(true), BrowserOnly: boolPointer(true), Colors: &colors}
 	if err := m.Configure(input); err != nil {
 		t.Fatal(err)
 	}
-	if m.DisplayMode != "message" || !m.Flash || !m.BrowserOnly || m.Colors != colors {
+	if m.DisplayMode != "message" || m.Language != "en" || !m.Flash || !m.BrowserOnly || m.Colors != colors {
 		t.Fatalf("settings not applied: %+v", m.State)
 	}
 }

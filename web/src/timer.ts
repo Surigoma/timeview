@@ -1,3 +1,6 @@
+import { t } from "./i18n.ts";
+import type { Language } from "./i18n.ts";
+
 export type TimerState = {
   instanceId: string;
   version: number;
@@ -9,6 +12,7 @@ export type TimerState = {
   warning2Seconds: number;
   message: { text: string; visible: boolean };
   displayMode: "timer" | "timer_and_message" | "message";
+  language: "ja" | "en";
   blackout: boolean;
   flash: boolean;
   browserOnly: boolean;
@@ -29,18 +33,29 @@ export function formatTime(ms: number): string {
 }
 
 export function phase(s: TimerState, remaining: number) {
-  if (remaining <= 0) return { label: "時間超過", color: s.colors.overtime };
+  const language = s.language ?? "ja";
+  if (remaining <= 0)
+    return {
+      label: t("timer.overtime", undefined, language),
+      color: s.colors.overtime,
+    };
   if (s.warning2Seconds > 0 && remaining <= s.warning2Seconds * 1000)
-    return { label: "第2警告", color: s.colors.warning2 };
+    return {
+      label: t("timer.warning2", undefined, language),
+      color: s.colors.warning2,
+    };
   if (s.warning1Seconds > 0 && remaining <= s.warning1Seconds * 1000)
-    return { label: "第1警告", color: s.colors.warning1 };
+    return {
+      label: t("timer.warning1", undefined, language),
+      color: s.colors.warning1,
+    };
   return {
     label:
       s.state === "running"
-        ? "計測中"
+        ? t("timer.running", undefined, language)
         : s.state === "paused"
-          ? "一時停止"
-          : "待機中",
+          ? t("timer.paused", undefined, language)
+          : t("timer.idle", undefined, language),
     color: s.colors.normal,
   };
 }
@@ -61,6 +76,7 @@ export function warningGauge(
   warning1Seconds: number,
   warning2Seconds: number,
   remainingMs: number,
+  language: Language = "ja",
 ) {
   const warning1Start =
     warning1Seconds > 0
@@ -72,12 +88,22 @@ export function warningGauge(
       : 100;
   const thresholds = [
     ...(warning1Seconds > warning2Seconds
-      ? [{ label: "第1警告まで", remainingMs: warning1Seconds * 1000 }]
+      ? [
+          {
+            label: t("timer.untilWarning1", undefined, language),
+            remainingMs: warning1Seconds * 1000,
+          },
+        ]
       : []),
     ...(warning2Seconds > 0
-      ? [{ label: "第2警告まで", remainingMs: warning2Seconds * 1000 }]
+      ? [
+          {
+            label: t("timer.untilWarning2", undefined, language),
+            remainingMs: warning2Seconds * 1000,
+          },
+        ]
       : []),
-    { label: "終了まで", remainingMs: 0 },
+    { label: t("timer.untilEnd", undefined, language), remainingMs: 0 },
   ];
   const next = thresholds.find(
     (threshold) => remainingMs > threshold.remainingMs,
@@ -113,14 +139,9 @@ export type Binding = {
   meta: boolean;
 };
 export type StoredBinding = Omit<Binding, "label">;
-const bind = (
-  action: string,
-  label: string,
-  code: string,
-  ctrl = false,
-): Binding => ({
+const bind = (action: string, code: string, ctrl = false): Binding => ({
   action,
-  label,
+  label: bindingLabel(action),
   code,
   ctrl,
   shift: false,
@@ -128,20 +149,27 @@ const bind = (
   meta: false,
 });
 export const defaultBindings: Binding[] = [
-  bind("start", "開始 / 再開", "NumpadEnter"),
-  bind("pause", "一時停止", "NumpadDecimal"),
-  bind("add", "+1分", "NumpadAdd"),
-  bind("subtract", "−1分", "NumpadSubtract"),
-  bind("reset", "リセット", "Numpad0", true),
-  bind("hide", "カンペ非表示", "Numpad0"),
-  bind("show", "カンペ再表示", "NumpadMultiply"),
-  bind("clear", "カンペ消去", "NumpadDivide"),
-  bind("blackout", "暗転", "NumpadSubtract", true),
-  bind("reveal", "暗転解除", "NumpadAdd", true),
-  ...Array.from({ length: 9 }, (_, i) =>
-    bind(`preset${i}`, `定型文 ${i + 1}`, `Numpad${i + 1}`),
-  ),
+  bind("start", "NumpadEnter"),
+  bind("pause", "NumpadDecimal"),
+  bind("add", "NumpadAdd"),
+  bind("subtract", "NumpadSubtract"),
+  bind("reset", "Numpad0", true),
+  bind("hide", "Numpad0"),
+  bind("show", "NumpadMultiply"),
+  bind("clear", "NumpadDivide"),
+  bind("blackout", "NumpadSubtract", true),
+  bind("reveal", "NumpadAdd", true),
+  ...Array.from({ length: 9 }, (_, i) => bind(`preset${i}`, `Numpad${i + 1}`)),
 ];
+export function bindingLabel(action: string, language?: Language) {
+  if (action.startsWith("preset"))
+    return t(
+      "actions.preset",
+      { number: Number(action.slice(6)) + 1 },
+      language,
+    );
+  return t(`actions.${action}`, undefined, language);
+}
 export function storeBindings(bindings: Binding[]): StoredBinding[] {
   return bindings.map((binding) => ({
     action: binding.action,
@@ -155,6 +183,7 @@ export function storeBindings(bindings: Binding[]): StoredBinding[] {
 export function restoreBindings(bindings: StoredBinding[]): Binding[] {
   return defaultBindings.map((fallback) => ({
     ...fallback,
+    label: bindingLabel(fallback.action),
     ...bindings.find((binding) => binding.action === fallback.action),
   }));
 }

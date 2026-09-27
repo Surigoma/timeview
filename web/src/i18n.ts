@@ -1,22 +1,342 @@
 import i18next from "i18next";
 
+const resources = {
+  ja: {
+    translation: {
+      common: {
+        connected: "接続中",
+        connecting: "接続待ち",
+        close: "閉じる",
+        enabled: "有効",
+        off: "OFF",
+        edit: "編集中",
+        synced: "同期済み",
+      },
+      app: {
+        inputWaiting: "入力待ち",
+        touch: "タッチ操作",
+        openDisplay: "演台画面を開く ↗",
+        mainNav: "メイン",
+        control: "タイマー操作",
+        settings: "設定・外部連携",
+        controlHeading: "上映を、静かに支える。",
+        settingsHeading: "操作環境を整える。",
+        environment: "単一タイマー · 分離ネットワーク",
+        reconnecting:
+          "サーバーに接続しています。接続が戻るまで操作できません。",
+        footer: "HTTP · オフライン運用 / 設定はJSON保存",
+        executed: "実行済み",
+        notExecuted: "未実行",
+        unsetPreset: "この定型文は未設定です",
+        resetNeedsModifier: "リセットには修飾キーが必要です",
+        duplicateKey: "このキーはすでに割り当てられています",
+      },
+      timer: {
+        idle: "待機中",
+        running: "計測中",
+        paused: "一時停止",
+        overtime: "時間超過",
+        warning1: "第1警告",
+        warning2: "第2警告",
+        untilWarning1: "第1警告まで",
+        untilWarning2: "第2警告まで",
+        untilEnd: "終了まで",
+      },
+      actions: {
+        start: "開始 / 再開",
+        resume: "再開",
+        startOnly: "開始",
+        pause: "一時停止",
+        add: "+1分",
+        subtract: "−1分",
+        reset: "リセット",
+        hide: "カンペ非表示",
+        show: "カンペ再表示",
+        clear: "カンペ消去",
+        blackout: "暗転",
+        reveal: "暗転解除",
+        preset: "定型文 {{number}}",
+      },
+      control: {
+        timer: "タイマー",
+        duration: "持ち時間 {{time}}",
+        resetConfirm: "タイマーを停止し、持ち時間に戻しますか？",
+        blackoutOn: "● 暗転中",
+        displayOn: "○ 演台表示中",
+        blackoutContinues: "暗転中も計測を継続します",
+        preview: "演台プレビュー",
+        previewBlackout: "演台は黒一色です。暗転解除で現在の内容を表示します。",
+        previewLive: "すべての演台画面に同じ内容を表示しています。",
+        overflow: "カンペが領域に収まりません。短く編集してください。",
+        keypadHint:
+          "この画面を前面にして操作します。フォーカスが外れるとOFFになります。",
+        disableKeypad: "Keypadを無効にする",
+        enableKeypad: "Keypadを有効にする",
+        message: "カンペ",
+        messageVisible: "表示設定 ON",
+        hidden: "非表示",
+        messageLabel: "送信するメッセージ",
+        messagePlaceholder: "登壇者へのメッセージを入力",
+        draftCount: "{{count}} / 500文字 · 未送信",
+        send: "送信 ↗",
+        sent: "送信済み",
+        notSent: "まだ送信していません",
+        showAgain: "再表示",
+      },
+      settings: {
+        bindings: "キー割り当て",
+        defaults: "既定に戻す",
+        bindingHint:
+          "変更を押してキーを入力。Escでキャンセル。変更はJSON設定へ保存します。",
+        enterKey: "キーを入力…",
+        integration: "外部連携",
+        readOnly: "参照のみ",
+        integrationReadOnly:
+          "ブラウザ操作限定中。外部連携では状態取得とSSEだけを利用できます。",
+        integrationOpen: "認証不要。同じ分離ネットワークから操作できます。",
+        displayURL: "演台URL",
+        copyURL: "URLをコピー",
+        timerAPI: "タイマーAPI",
+        copied: "コピーしました",
+        copyFallback: "下のURLを選択してコピーしてください",
+        readOnlyExample:
+          "GET /api/v1/timer\nGET /api/v1/timer/events\n\n変更API: 403 BROWSER_ONLY",
+        persistence:
+          "設定・定型文・キー割り当てはJSONへ保存します。再起動時も暗転はONです。",
+        timerDisplay: "タイマー・表示設定",
+        duration: "持ち時間（待機中のみ変更可能）",
+        hour: "時",
+        minute: "分",
+        second: "秒",
+        warning1: "第1警告（残り秒）",
+        warning2: "第2警告（残り秒）",
+        displayMode: "表示モード",
+        timerMessage: "タイマー＋カンペ",
+        timerOnly: "タイマーのみ",
+        messageOnly: "カンペのみ",
+        normal: "通常",
+        overtime: "時間超過",
+        flash: "時間超過時にゆっくり点滅",
+        browserOnly: "ブラウザからの操作だけを許可",
+        browserOnlyHint:
+          "有効時も外部APIからの状態取得は可能ですが、変更操作は拒否します。",
+        language: "表示言語",
+        japanese: "日本語",
+        english: "English",
+        apply: "設定を反映",
+        reload: "最新の設定を読み直す",
+        conflict: "設定が競合した場合は読み直してから再編集してください。",
+        presets: "定型文",
+        presetLimit: "最大9件",
+        presetHint: "ボタン・テンキーから即時送信するメッセージです。",
+        applyPresets: "定型文を反映",
+        undo: "編集を戻す",
+      },
+      stage: {
+        offline: "接続待ち · 推定表示",
+        gauge: "警告領域付き経過時間",
+        overtime: "終了時刻を超過",
+        fullscreen: "全画面表示",
+      },
+      touch: {
+        connecting: "接続しています…",
+        timerControls: "タイマー操作",
+        stageControls: "演台操作",
+        standardControl: "通常の操作画面",
+        display: "演台画面 ↗",
+      },
+      notices: {
+        restarted:
+          "サーバーが再起動しました。保存済み設定を読み込み、タイマーを待機・暗転へ戻しました。",
+      },
+      errors: {
+        operationFailed: "操作に失敗しました",
+        noAutomaticRetry:
+          "自動再送は行いません。現在の状態を確認してください。",
+      },
+    },
+  },
+  en: {
+    translation: {
+      common: {
+        connected: "Connected",
+        connecting: "Connecting",
+        close: "Close",
+        enabled: "Enabled",
+        off: "OFF",
+        edit: "Editing",
+        synced: "Synced",
+      },
+      app: {
+        inputWaiting: "Waiting for input",
+        touch: "Touch controls",
+        openDisplay: "Open stage display ↗",
+        mainNav: "Main",
+        control: "Timer",
+        settings: "Settings & integrations",
+        controlHeading: "Keep the show running quietly.",
+        settingsHeading: "Set up your control environment.",
+        environment: "Single timer · Isolated network",
+        reconnecting:
+          "Connecting to the server. Controls are disabled until the connection returns.",
+        footer: "HTTP · Offline operation / JSON settings",
+        executed: "Done",
+        notExecuted: "Not run",
+        unsetPreset: "This preset is not configured",
+        resetNeedsModifier: "Reset requires a modifier key",
+        duplicateKey: "This key is already assigned",
+      },
+      timer: {
+        idle: "Idle",
+        running: "Running",
+        paused: "Paused",
+        overtime: "Overtime",
+        warning1: "Warning 1",
+        warning2: "Warning 2",
+        untilWarning1: "Until warning 1",
+        untilWarning2: "Until warning 2",
+        untilEnd: "Until end",
+      },
+      actions: {
+        start: "Start / Resume",
+        resume: "Resume",
+        startOnly: "Start",
+        pause: "Pause",
+        add: "+1 min",
+        subtract: "−1 min",
+        reset: "Reset",
+        hide: "Hide message",
+        show: "Show message",
+        clear: "Clear message",
+        blackout: "Blackout",
+        reveal: "Reveal",
+        preset: "Preset {{number}}",
+      },
+      control: {
+        timer: "Timer",
+        duration: "Duration {{time}}",
+        resetConfirm: "Stop the timer and restore the full duration?",
+        blackoutOn: "● Blackout",
+        displayOn: "○ Stage live",
+        blackoutContinues: "The timer keeps running during blackout",
+        preview: "Stage preview",
+        previewBlackout:
+          "The stage is black. Reveal it to show the current content.",
+        previewLive: "All stage displays show the same content.",
+        overflow: "The message does not fit. Shorten it before sending.",
+        keypadHint:
+          "Keep this screen in front. Keypad turns off when focus is lost.",
+        disableKeypad: "Disable keypad",
+        enableKeypad: "Enable keypad",
+        message: "Message",
+        messageVisible: "Visible",
+        hidden: "Hidden",
+        messageLabel: "Message to send",
+        messagePlaceholder: "Enter a message for the speaker",
+        draftCount: "{{count}} / 500 characters · Not sent",
+        send: "Send ↗",
+        sent: "Sent",
+        notSent: "Nothing sent yet",
+        showAgain: "Show",
+      },
+      settings: {
+        bindings: "Key bindings",
+        defaults: "Restore defaults",
+        bindingHint:
+          "Select a binding and press a key. Esc cancels. Changes are saved to JSON.",
+        enterKey: "Press a key…",
+        integration: "Integrations",
+        readOnly: "Read only",
+        integrationReadOnly:
+          "Browser-only control is enabled. Integrations can only read state and SSE.",
+        integrationOpen:
+          "No authentication. Devices on the same isolated network can control it.",
+        displayURL: "Stage URL",
+        copyURL: "Copy URL",
+        timerAPI: "Timer API",
+        copied: "Copied",
+        copyFallback: "Select and copy the URL below",
+        readOnlyExample:
+          "GET /api/v1/timer\nGET /api/v1/timer/events\n\nMutations: 403 BROWSER_ONLY",
+        persistence:
+          "Settings, presets, and key bindings are saved to JSON. Blackout is ON after restart.",
+        timerDisplay: "Timer & display settings",
+        duration: "Duration (editable while idle)",
+        hour: "Hours",
+        minute: "Minutes",
+        second: "Seconds",
+        warning1: "Warning 1 (seconds remaining)",
+        warning2: "Warning 2 (seconds remaining)",
+        displayMode: "Display mode",
+        timerMessage: "Timer + message",
+        timerOnly: "Timer only",
+        messageOnly: "Message only",
+        normal: "Normal",
+        overtime: "Overtime",
+        flash: "Slow flash during overtime",
+        browserOnly: "Allow controls only from the browser",
+        browserOnlyHint:
+          "External APIs can still read state, but mutations are rejected.",
+        language: "Display language",
+        japanese: "日本語",
+        english: "English",
+        apply: "Apply settings",
+        reload: "Reload latest settings",
+        conflict: "If settings conflict, reload before editing again.",
+        presets: "Presets",
+        presetLimit: "Up to 9",
+        presetHint: "Messages sent immediately from buttons or the keypad.",
+        applyPresets: "Apply presets",
+        undo: "Undo edits",
+      },
+      stage: {
+        offline: "Connecting · Estimated time",
+        gauge: "Elapsed time with warning regions",
+        overtime: "Past end time",
+        fullscreen: "Fullscreen",
+      },
+      touch: {
+        connecting: "Connecting…",
+        timerControls: "Timer controls",
+        stageControls: "Stage controls",
+        standardControl: "Standard controls",
+        display: "Stage display ↗",
+      },
+      notices: {
+        restarted:
+          "The server restarted. Saved settings were loaded and the timer returned to idle with blackout on.",
+      },
+      errors: {
+        operationFailed: "操作に失敗しました",
+        noAutomaticRetry:
+          "自動再送は行いません。現在の状態を確認してください。",
+      },
+    },
+  },
+} as const;
+
 void i18next.init({
   lng: "ja",
   fallbackLng: "ja",
   initAsync: false,
-  resources: {
-    ja: {
-      translation: {
-        errors: {
-          operationFailed: "操作に失敗しました",
-          noAutomaticRetry:
-            "自動再送は行いません。現在の状態を確認してください。",
-        },
-      },
-    },
-  },
+  resources,
 });
 
+export type Language = "ja" | "en";
+
+export function setLanguage(language: Language) {
+  if (i18next.language !== language) void i18next.changeLanguage(language);
+  if (typeof document !== "undefined") document.documentElement.lang = language;
+}
+
+export function t(
+  key: string,
+  values?: Record<string, string | number>,
+  language?: Language,
+) {
+  return i18next.t(key, { ...values, lng: language });
+}
+
 export function operationError(message?: string) {
-  return `${message || i18next.t("errors.operationFailed")}。${i18next.t("errors.noAutomaticRetry")}`;
+  return `${message || t("errors.operationFailed")}。${t("errors.noAutomaticRetry")}`;
 }

@@ -17,7 +17,7 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 		t.Fatal(err)
 	}
 	initial := server.model.State.ETag()
-	settings := `{"durationSeconds":900,"warning1Seconds":300,"warning2Seconds":90,"displayMode":"timer","flash":true}`
+	settings := `{"durationSeconds":900,"warning1Seconds":300,"warning2Seconds":90,"displayMode":"timer","language":"en","flash":true}`
 	stateOf(t, request(server, "PATCH", "/timer", settings, "settings", initial))
 	stateOf(t, request(server, "PUT", "/timer/presets", `{"presets":["残り5分","終了してください"]}`, "presets", ""))
 
@@ -51,7 +51,7 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := restarted.model
-	if got.Duration != 900 || got.Remaining != 900000 || got.Warning1 != 300 || got.Warning2 != 90 || got.DisplayMode != "timer" || !got.Flash || !got.BrowserOnly {
+	if got.Duration != 900 || got.Remaining != 900000 || got.Warning1 != 300 || got.Warning2 != 90 || got.DisplayMode != "timer" || got.Language != "en" || !got.Flash || !got.BrowserOnly {
 		t.Fatalf("timer config was not restored: %+v", got.State)
 	}
 	if got.Status != "idle" || !got.Blackout || got.Message != (timer.Message{}) {

@@ -37,6 +37,7 @@ type timerConfig struct {
 	Warning1    int64  `json:"warning1Seconds" validate:"gte=0,lte=86400"`
 	Warning2    int64  `json:"warning2Seconds" validate:"gte=0,lte=86400"`
 	DisplayMode string `json:"displayMode" validate:"oneof=timer timer_and_message message"`
+	Language    string `json:"language,omitempty" validate:"omitempty,oneof=ja en"`
 	Flash       bool   `json:"flash"`
 	BrowserOnly bool   `json:"browserOnly"`
 	Colors      Colors `json:"colors" validate:"required"`
@@ -112,7 +113,7 @@ func configFromModel(m Model) fileConfig {
 		Version: configVersion,
 		Timer: timerConfig{
 			Duration: m.Duration, Warning1: m.Warning1, Warning2: m.Warning2,
-			DisplayMode: m.DisplayMode, Flash: m.Flash, BrowserOnly: m.BrowserOnly, Colors: m.Colors,
+			DisplayMode: m.DisplayMode, Language: m.Language, Flash: m.Flash, BrowserOnly: m.BrowserOnly, Colors: m.Colors,
 		},
 		Presets:        m.Presets(),
 		KeypadBindings: m.Bindings(),
@@ -160,6 +161,9 @@ func Load(path string, now time.Time) (Model, error) {
 		Duration: &config.Timer.Duration, Warning1: &config.Timer.Warning1,
 		Warning2: &config.Timer.Warning2, DisplayMode: &config.Timer.DisplayMode,
 		Flash: &config.Timer.Flash, BrowserOnly: &config.Timer.BrowserOnly, Colors: &config.Timer.Colors,
+	}
+	if config.Timer.Language != "" {
+		settings.Language = &config.Timer.Language
 	}
 	if err := m.Configure(settings); err != nil {
 		return Model{}, fmt.Errorf("設定ファイルのタイマー設定が不正です: %w", err)
