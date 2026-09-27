@@ -13,6 +13,7 @@ export type TimerState = {
   message: { text: string; visible: boolean };
   displayMode: "timer" | "timer_and_message" | "message";
   language: "ja" | "en";
+  logLevel: "debug" | "info" | "warn" | "error";
   blackout: boolean;
   flash: boolean;
   browserOnly: boolean;

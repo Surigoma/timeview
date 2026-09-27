@@ -139,6 +139,7 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
       warning2Seconds: state.warning2Seconds,
       displayMode: state.displayMode,
       language: state.language,
+      logLevel: state.logLevel,
       flash: state.flash,
       browserOnly: state.browserOnly,
       colors: state.colors,
@@ -257,6 +258,22 @@ function SettingsPanel({ timer }: { timer: TimerConnection }) {
             >
               <option value="ja">{t("settings.japanese")}</option>
               <option value="en">{t("settings.english")}</option>
+            </select>
+          </label>
+          <label>
+            {t("settings.logLevel")}
+            <select
+              value={state.logLevel}
+              onChange={(event) =>
+                update({
+                  logLevel: event.target.value as TimerState["logLevel"],
+                })
+              }
+            >
+              <option value="debug">DEBUG</option>
+              <option value="info">INFO</option>
+              <option value="warn">WARN</option>
+              <option value="error">ERROR</option>
             </select>
           </label>
           <div className="colors">

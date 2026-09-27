@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"time"
@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"timeview/internal/auditlog"
+	"timeview/internal/systemlog"
 	"timeview/internal/timer"
 )
 
@@ -88,7 +89,6 @@ func (s *Server) mutation(persist bool, apply mutationFunc) gin.HandlerFunc {
 			return
 		}
 		s.recordOperation(c, data, nil)
-		log.Printf("%s %s ok", c.Request.Method, c.Request.URL.Path)
 		c.Header("ETag", etag)
 		c.Data(http.StatusOK, "application/json; charset=utf-8", body)
 	}
@@ -114,7 +114,7 @@ func (s *Server) recordOperation(c *gin.Context, data []byte, operationErr error
 		}
 	}
 	if err := s.audit.Write(entry); err != nil {
-		log.Printf("write operation log: %v", err)
+		slog.Error("操作ログを書き込めません", "error", err)
 	}
 }
 
@@ -214,7 +214,7 @@ func (s *Server) mutate(c *gin.Context, persist bool, apply mutationFunc, data [
 	changed := !reflect.DeepEqual(s.model, next)
 	if changed && persist && s.configPath != "" {
 		if err := timer.Save(s.configPath, next); err != nil {
-			log.Printf("save config: %v", err)
+			slog.Error("設定を保存できません", "error", err)
 			return nil, "", &apiError{Status: 500, Code: "CONFIG_SAVE_FAILED", Message: "設定ファイルを保存できません"}
 		}
 	}
@@ -230,6 +230,9 @@ func (s *Server) mutate(c *gin.Context, persist bool, apply mutationFunc, data [
 		return nil, "", invalid("応答が再送記録の上限を超えます")
 	}
 	s.model = next
+	if s.logLevel != nil {
+		_ = systemlog.SetLevel(s.logLevel, next.LogLevel)
+	}
 	if key != "" {
 		s.receipts[key] = receipt{hash, body, state.ETag(), now.Add(10 * time.Minute)}
 	}

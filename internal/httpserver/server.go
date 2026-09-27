@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"timeview/internal/auditlog"
+	"timeview/internal/systemlog"
 	"timeview/internal/timer"
 )
 
@@ -24,9 +26,17 @@ type Server struct {
 	handler    http.Handler
 	handlerOne sync.Once
 	audit      *auditlog.Log
+	logLevel   *slog.LevelVar
 }
 
 func (s *Server) SetAuditLog(log *auditlog.Log) { s.audit = log }
+
+func (s *Server) SetLogLevel(level *slog.LevelVar) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.logLevel = level
+	_ = systemlog.SetLevel(level, s.model.LogLevel)
+}
 
 func prepareGin() {
 	configureGin.Do(func() {
@@ -71,7 +81,7 @@ func (s *Server) Register(api *gin.RouterGroup) {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.handlerOne.Do(func() {
 		router := gin.New()
-		router.Use(gin.Recovery())
+		router.Use(Recovery())
 		_ = router.SetTrustedProxies(nil)
 		s.Register(router.Group("/api/v1"))
 		router.NoRoute(func(c *gin.Context) {

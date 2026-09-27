@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -24,6 +26,41 @@ type clientLimit struct {
 	write *rate.Limiter
 	read  *rate.Limiter
 	last  time.Time
+}
+
+// AccessLogger writes one structured slog event for each completed request.
+func AccessLogger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		started := time.Now()
+		c.Next()
+		level := slog.LevelInfo
+		if c.Writer.Status() >= http.StatusInternalServerError {
+			level = slog.LevelError
+		} else if c.Writer.Status() >= http.StatusBadRequest {
+			level = slog.LevelWarn
+		}
+		slog.LogAttrs(c.Request.Context(), level, "HTTP request",
+			slog.String("method", c.Request.Method),
+			slog.String("path", c.Request.URL.Path),
+			slog.Int("status", c.Writer.Status()),
+			slog.Duration("duration", time.Since(started)),
+			slog.String("client", c.ClientIP()),
+		)
+	}
+}
+
+// Recovery converts handler panics to the same structured system log and API error format.
+func Recovery() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if value := recover(); value != nil {
+				slog.ErrorContext(c.Request.Context(), "HTTP handler panic",
+					"method", c.Request.Method, "path", c.Request.URL.Path, "panic", fmt.Sprint(value))
+				writeError(c, errors.New("handler panic"))
+			}
+		}()
+		c.Next()
+	}
 }
 
 func (s *Server) apiHeaders() gin.HandlerFunc {

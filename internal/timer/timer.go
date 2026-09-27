@@ -32,6 +32,7 @@ type State struct {
 	Message     Message `json:"message"`
 	DisplayMode string  `json:"displayMode"`
 	Language    string  `json:"language"`
+	LogLevel    string  `json:"logLevel"`
 	Blackout    bool    `json:"blackout"`
 	Flash       bool    `json:"flash"`
 	BrowserOnly bool    `json:"browserOnly"`
@@ -52,7 +53,7 @@ func New(now time.Time) Model {
 	}
 	return Model{State: State{
 		InstanceID: hex.EncodeToString(id), Status: "idle", Duration: 600, Remaining: 600000,
-		Warning1: 180, Warning2: 60, Blackout: true, DisplayMode: "timer_and_message", Language: "ja",
+		Warning1: 180, Warning2: 60, Blackout: true, DisplayMode: "timer_and_message", Language: "ja", LogLevel: "info",
 		Colors: Colors{"#4b5263", "#f2cc60", "#ff9854", "#ff6069"},
 	}, anchor: now, presets: []string{}, bindings: defaultBindings()}
 }
@@ -129,6 +130,7 @@ type Settings struct {
 	Warning2    *int64  `json:"warning2Seconds,omitempty"`
 	DisplayMode *string `json:"displayMode,omitempty"`
 	Language    *string `json:"language,omitempty"`
+	LogLevel    *string `json:"logLevel,omitempty"`
 	Flash       *bool   `json:"flash,omitempty"`
 	BrowserOnly *bool   `json:"browserOnly,omitempty"`
 	Colors      *Colors `json:"colors,omitempty"`
@@ -166,6 +168,14 @@ func (m *Model) Configure(p Settings) error {
 			return Invalid("言語はjaまたはenを指定してください")
 		}
 		m.Language = *p.Language
+	}
+	if p.LogLevel != nil {
+		switch *p.LogLevel {
+		case "debug", "info", "warn", "error":
+			m.LogLevel = *p.LogLevel
+		default:
+			return Invalid("ログレベルはdebug、info、warn、errorのいずれかを指定してください")
+		}
 	}
 	if p.Flash != nil {
 		m.Flash = *p.Flash

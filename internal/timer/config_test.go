@@ -17,11 +17,11 @@ func TestConfigRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	duration, warning1, warning2 := int64(900), int64(300), int64(90)
-	displayMode, language, flash, browserOnly := "message", "en", true, true
+	displayMode, language, logLevel, flash, browserOnly := "message", "en", "debug", true, true
 	colors := Colors{"#010203", "#112233", "#223344", "#334455"}
 	if err := model.Configure(Settings{
 		Duration: &duration, Warning1: &warning1, Warning2: &warning2,
-		DisplayMode: &displayMode, Language: &language, Flash: &flash, BrowserOnly: &browserOnly, Colors: &colors,
+		DisplayMode: &displayMode, Language: &language, LogLevel: &logLevel, Flash: &flash, BrowserOnly: &browserOnly, Colors: &colors,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	if loaded.Duration != duration || loaded.Remaining != duration*1000 || loaded.Warning1 != warning1 || loaded.Warning2 != warning2 {
 		t.Fatalf("timer settings were not restored: %+v", loaded.State)
 	}
-	if loaded.DisplayMode != displayMode || loaded.Language != language || !loaded.Flash || !loaded.BrowserOnly || loaded.Colors != colors {
+	if loaded.DisplayMode != displayMode || loaded.Language != language || loaded.LogLevel != logLevel || !loaded.Flash || !loaded.BrowserOnly || loaded.Colors != colors {
 		t.Fatalf("display settings were not restored: %+v", loaded.State)
 	}
 	if presets := loaded.Presets(); len(presets) != 2 || presets[0] != "five minutes" {
@@ -51,7 +51,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 }
 
-func TestConfigWithoutLanguageDefaultsToJapanese(t *testing.T) {
+func TestLegacyConfigUsesNewDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "timeview-config.json")
 	model, err := Load(path, time.Now())
 	if err != nil {
@@ -66,6 +66,7 @@ func TestConfigWithoutLanguageDefaultsToJapanese(t *testing.T) {
 		t.Fatal(err)
 	}
 	delete(config["timer"].(map[string]any), "language")
+	delete(config["timer"].(map[string]any), "logLevel")
 	data, err = json.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
@@ -77,8 +78,8 @@ func TestConfigWithoutLanguageDefaultsToJapanese(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.Language != "ja" || model.Language != "ja" {
-		t.Fatalf("legacy config language = %q", loaded.Language)
+	if loaded.Language != "ja" || loaded.LogLevel != "info" || model.Language != "ja" || model.LogLevel != "info" {
+		t.Fatalf("legacy config defaults = language %q, log level %q", loaded.Language, loaded.LogLevel)
 	}
 }
 

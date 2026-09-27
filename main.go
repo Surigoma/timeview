@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,20 +15,27 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mattn/go-isatty"
 
 	"timeview/internal/auditlog"
 	"timeview/internal/httpserver"
+	"timeview/internal/systemlog"
 	"timeview/web"
 )
 
 func main() {
-	if err := run(); err != nil {
-		log.Print(err)
+	level := new(slog.LevelVar)
+	_ = systemlog.SetLevel(level, "info")
+	noColor := !isatty.IsTerminal(os.Stderr.Fd()) && !isatty.IsCygwinTerminal(os.Stderr.Fd())
+	slog.SetDefault(systemlog.New(os.Stderr, level, noColor))
+	if err := run(level); err != nil {
+		slog.Error("TimeViewを停止しました", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("TimeViewを停止しました")
 }
 
-func run() (runErr error) {
+func run(level *slog.LevelVar) (runErr error) {
 	listen := flag.String("listen", "127.0.0.1:8080", "HTTP listen address")
 	configPath := flag.String("config", "timeview-config.json", "JSON config file path")
 	auditPath := flag.String("audit-log", "timeview-operations.jsonl", "JSON Lines operation log path")
@@ -66,6 +73,7 @@ func run() (runErr error) {
 		return err
 	}
 	api.SetAuditLog(operations)
+	api.SetLogLevel(level)
 	assets, err := fs.Sub(web.Assets, "dist")
 	if err != nil {
 		return err
@@ -76,7 +84,7 @@ func run() (runErr error) {
 	}
 	files := http.FileServer(http.FS(assets))
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(httpserver.AccessLogger(), httpserver.Recovery())
 	_ = router.SetTrustedProxies(nil)
 	api.Register(router.Group("/api/v1"))
 	serveIndex := func(c *gin.Context) {
@@ -109,7 +117,12 @@ func run() (runErr error) {
 		_ = server.Shutdown(c)
 		_ = server.Close()
 	}()
-	fmt.Printf("TimeView\nControl: http://%s/\nDisplay: http://%s/display\nConfig: %s\nAudit log: %s\nTimer state is in memory. Blackout is ON at startup.\n", *listen, *listen, absConfigPath, absAuditPath)
+	slog.Info("TimeViewを起動しました",
+		"control", "http://"+*listen+"/",
+		"display", "http://"+*listen+"/display",
+		"config", absConfigPath,
+		"auditLog", absAuditPath,
+	)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}

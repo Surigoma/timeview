@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,8 +18,13 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 		t.Fatal(err)
 	}
 	initial := server.model.State.ETag()
-	settings := `{"durationSeconds":900,"warning1Seconds":300,"warning2Seconds":90,"displayMode":"timer","language":"en","flash":true}`
+	level := new(slog.LevelVar)
+	server.SetLogLevel(level)
+	settings := `{"durationSeconds":900,"warning1Seconds":300,"warning2Seconds":90,"displayMode":"timer","language":"en","logLevel":"debug","flash":true}`
 	stateOf(t, request(server, "PATCH", "/timer", settings, "settings", initial))
+	if level.Level() != slog.LevelDebug {
+		t.Fatalf("live log level = %s", level.Level())
+	}
 	stateOf(t, request(server, "PUT", "/timer/presets", `{"presets":["残り5分","終了してください"]}`, "presets", ""))
 
 	bindings := server.model.Bindings()
@@ -51,7 +57,7 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := restarted.model
-	if got.Duration != 900 || got.Remaining != 900000 || got.Warning1 != 300 || got.Warning2 != 90 || got.DisplayMode != "timer" || got.Language != "en" || !got.Flash || !got.BrowserOnly {
+	if got.Duration != 900 || got.Remaining != 900000 || got.Warning1 != 300 || got.Warning2 != 90 || got.DisplayMode != "timer" || got.Language != "en" || got.LogLevel != "debug" || !got.Flash || !got.BrowserOnly {
 		t.Fatalf("timer config was not restored: %+v", got.State)
 	}
 	if got.Status != "idle" || !got.Blackout || got.Message != (timer.Message{}) {

@@ -216,6 +216,15 @@
                       "en"
                     ]
                   },
+                  "logLevel": {
+                    "type": "string",
+                    "enum": [
+                      "debug",
+                      "info",
+                      "warn",
+                      "error"
+                    ]
+                  },
                   "flash": {
                     "type": "boolean"
                   },
@@ -1318,6 +1327,7 @@
           "message",
           "displayMode",
           "language",
+          "logLevel",
           "blackout",
           "flash",
           "browserOnly",
@@ -1390,6 +1400,16 @@
               "en"
             ],
             "default": "ja"
+          },
+          "logLevel": {
+            "type": "string",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error"
+            ],
+            "default": "info"
           },
           "blackout": {
             "type": "boolean",
