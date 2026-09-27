@@ -12,6 +12,7 @@
 | `task lint` | 成功。Go vet、TypeScript型検査、ESLintが成功 |
 | `task release` | 成功。Windows amd64、macOS amd64／arm64、Linux amd64／arm64の5成果物を生成 |
 | OpenAPI | `docs/openapi.json`をJSONとして読み込み、OpenAPI 3.1.0と主要パスの存在を確認 |
+| Docker定義 | `task --list`でDockerタスクとTaskfileを読み込み。DockerイメージのCIビルドを追加 |
 
 ## Windowsでの手動確認
 
@@ -58,6 +59,7 @@ Windows amd64のstrip済みバイナリで、Gin既定ビルドと`nomsgpack`ビ
 
 ## 未確認項目
 
+- Dockerが開発環境へ未導入のため、ローカルでのイメージビルドとコンテナ起動。CIの`docker build`とDocker利用環境で確認する。
 - macOS／Linux実機での起動、ブラウザ表示、Keypad入力。クロスコンパイル成功のみ確認済み。
 - Windows以外のブラウザ、およびWindows上の物理USBテンキー。今回のKeypad確認はブラウザへ送ったテンキーイベントによる。
 - 分離LAN上の別PC間通信、ファイアウォール設定、50接続時の負荷。

@@ -23,6 +23,8 @@ task lint
 task test
 task build
 task release
+task docker:build
+task docker:up
 ```
 
 - `task build`: 現在のOS／CPU向けバイナリを生成する。
@@ -31,6 +33,7 @@ task release
 - 本番実行時はGo、Node.js、Task、DBを必要としない。
 - 生成物は`dist/`へ出力し、Gitには追加しない。
 - APIはJSONのみを扱うため、Goの実行・検証・配布ビルドにはGin公式の`nomsgpack`ビルドタグを付ける。未使用のMsgPack実装をリンクせず、機能を変えずにバイナリを小さくする。
+- DockerイメージはNodeとGoのビルドステージから、単一バイナリだけを`/timeview`へコピーした`scratch`イメージを作る。実行時の設定と操作ログはイメージへ含めず、`/data`ボリュームへ保存する。
 
 ## GitHub Actionsとリリース
 

@@ -47,6 +47,14 @@ tasks:
       - task: web:build
       - task: binary
         vars: { TARGET_OS: '{{OS}}', TARGET_ARCH: '{{ARCH}}' }
+  docker:build:
+    desc: Build the lightweight TimeView container image
+    cmds:
+      - docker build --tag timeview:local .
+  docker:up:
+    desc: Build and start TimeView with persistent Docker storage
+    cmds:
+      - docker compose up --build
   binary:
     internal: true
     env:

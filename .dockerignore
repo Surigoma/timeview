@@ -1,0 +1,11 @@
+.git
+.github
+.cache
+.task
+dist
+web/dist
+web/node_modules
+*.log
+*.jsonl
+timeview-config.json
+TASKS.md

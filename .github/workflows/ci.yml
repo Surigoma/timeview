@@ -28,6 +28,7 @@ jobs:
       - run: go vet -tags=nomsgpack . ./internal/... ./web
       - run: go test -tags=nomsgpack -cover ./internal/...
       - run: go test -tags=nomsgpack . ./web
+      - run: docker build --tag timeview:ci .
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
