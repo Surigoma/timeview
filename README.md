@@ -35,6 +35,21 @@ docker compose up --build -d
 
 別端末からは `http://<サーバーPCのLAN側IP>:8080/`、タッチパネルは `/touch`、演台は `/display` へアクセスします。`0.0.0.0` は待受指定なので、ブラウザには実際のIPを入力してください。OSのファイアウォールで会場LANから指定ポートへの接続を許可してください。
 
+## UIなしリモコン
+
+配布物に含まれる `timeview-remote`（Windowsは `timeview-remote.exe`）を別PCへ置くと、ブラウザなしで操作できます。TimeView側の「ブラウザからの操作だけを許可」はOFFにしてください。
+
+```sh
+timeview-remote -server http://192.168.1.10:8080 status
+timeview-remote -server http://192.168.1.10:8080 start
+timeview-remote -server http://192.168.1.10:8080 add 60
+timeview-remote -server http://192.168.1.10:8080 blackout
+timeview-remote -server http://192.168.1.10:8080 message "残り5分です"
+timeview-remote -server http://192.168.1.10:8080 preset 1
+```
+
+操作は `start`、`pause`、`reset`、`add [秒]`、`subtract [秒]`、`blackout`、`reveal`、`hide`、`show`、`clear`、`message <本文>`、`preset <1～9>` です。終了コードが0なら成功し、通信・入力・APIエラーは日本語で標準エラー出力へ表示します。
+
 初回起動時は10分・待機・**暗転ON**です。設定を確認し、操作画面で「暗転解除」を押してください。演台は警告段階に応じて背景色が変わり、画面下部のゲージで通常・第1警告・第2警告の領域、経過率、次の警告までの時間を示します。上映時は演台を全画面にし、実際の表示を確認してから暗転します。暗転中も計測を継続します。
 
 ## 設定ファイル

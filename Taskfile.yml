@@ -23,19 +23,19 @@ tasks:
   fmt:
     desc: Format Go and frontend source
     cmds:
-      - gofmt -w main.go internal web/embed.go
+      - gofmt -w main.go internal cmd web/embed.go
       - '{{.NPM}} --prefix web run fmt'
   lint:
     desc: Check Go, TypeScript and ESLint
     cmds:
       - task: web:build
-      - go vet -tags=nomsgpack . ./internal/... ./web
+      - go vet -tags=nomsgpack . ./cmd/... ./internal/... ./web
       - '{{.NPM}} --prefix web run lint'
   test:
     desc: Run backend and frontend tests
     cmds:
       - task: web:build
-      - go test -tags=nomsgpack . ./internal/... ./web
+      - go test -tags=nomsgpack . ./cmd/... ./internal/... ./web
       - '{{.NPM}} --prefix web test'
   web:build:
     internal: true
@@ -63,6 +63,7 @@ tasks:
       GOARCH: '{{.TARGET_ARCH}}'
     cmds:
       - go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview{{if eq .TARGET_OS "windows"}}.exe{{end}} .
+      - go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview-remote{{if eq .TARGET_OS "windows"}}.exe{{end}} ./cmd/timeview-remote
   release:
     desc: Build Windows, macOS and Linux release executables (5 targets)
     cmds:

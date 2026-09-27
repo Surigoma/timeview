@@ -28,8 +28,8 @@ task docker:up
 ```
 
 - `task build`: 現在のOS／CPU向けバイナリを生成する。
-- `task release`: Windows amd64、macOS amd64／arm64、Linux amd64／arm64を生成する。
-- Go検証の対象は `. ./internal/... ./web`。`node_modules`内の他社Goコードは対象外。
+- `task release`: Windows amd64、macOS amd64／arm64、Linux amd64／arm64向けにサーバーとUIなしリモコンを生成する。
+- Go検証の対象は `. ./cmd/... ./internal/... ./web`。`node_modules`内の他社Goコードは対象外。
 - 本番実行時はGo、Node.js、Task、DBを必要としない。
 - 生成物は`dist/`へ出力し、Gitには追加しない。
 - APIはJSONのみを扱うため、Goの実行・検証・配布ビルドにはGin公式の`nomsgpack`ビルドタグを付ける。未使用のMsgPack実装をリンクせず、機能を変えずにバイナリを小さくする。
