@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStartCommand(t *testing.T) {
@@ -55,7 +57,7 @@ func TestPresetAndAPIErrors(t *testing.T) {
 }
 
 func TestArgumentValidation(t *testing.T) {
-	for _, args := range [][]string{{}, {"-server", "file:///tmp", "status"}, {"add", "0"}, {"preset", "10"}, {"message"}, {"unknown"}} {
+	for _, args := range [][]string{{}, {"-server", "file:///tmp", "status"}, {"listen", "extra"}, {"add", "0"}, {"preset", "10"}, {"message"}, {"unknown"}} {
 		if err := run(args, &strings.Builder{}); err == nil {
 			t.Fatalf("expected error for %#v", args)
 		}
@@ -93,5 +95,69 @@ func TestRequestForCommands(t *testing.T) {
 func TestResponseErrorFallback(t *testing.T) {
 	if got := responseError(http.StatusBadGateway, []byte("invalid")).Error(); got != "TimeViewがHTTP 502を返しました" {
 		t.Fatalf("error = %q", got)
+	}
+}
+
+func TestInputBindings(t *testing.T) {
+	midi := midiBinding{Status: 0x90, Data1: 36}
+	bindings := []keyBinding{
+		{Action: "start", Code: "KeyS", Ctrl: true},
+		{Action: "preset2", Code: "Numpad3", MIDI: &midi},
+	}
+	if got := actionFor(bindings, inputEvent{Code: "KeyS", Ctrl: true}); got != "start" {
+		t.Fatalf("keyboard action = %q", got)
+	}
+	if got := actionFor(bindings, inputEvent{Code: "KeyS"}); got != "" {
+		t.Fatalf("keyboard action without modifier = %q", got)
+	}
+	if got := actionFor(bindings, inputEvent{MIDI: &midi}); got != "preset2" {
+		t.Fatalf("MIDI action = %q", got)
+	}
+	if got := strings.Join(commandForAction("preset2"), " "); got != "preset 3" {
+		t.Fatalf("preset command = %q", got)
+	}
+	if commandForAction("preset9") != nil || commandForAction("unknown") != nil {
+		t.Fatal("invalid actions must not create commands")
+	}
+}
+
+func TestListenUsesServerBindings(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/timer/bindings":
+			_, _ = w.Write([]byte(`{"bindings":[{"action":"start","code":"NumpadEnter","ctrl":false,"shift":false,"alt":false,"meta":false}]}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/timer":
+			_, _ = w.Write([]byte(`{"instanceId":"boot"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/timer/commands":
+			_, _ = w.Write([]byte(`{"instanceId":"boot"}`))
+			cancel()
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	original := startInputs
+	defer func() { startInputs = original }()
+	stopped := make(chan struct{})
+	startInputs = func(events chan<- inputEvent) (func(), int, error) {
+		events <- inputEvent{Code: "NumpadEnter"}
+		return func() { close(stopped) }, 1, nil
+	}
+	var output strings.Builder
+	r := remote{server.URL + "/api/v1/timer", &http.Client{Timeout: time.Second}}
+	if err := r.listen(ctx, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "MIDI入力: 1台") || !strings.Contains(output.String(), "OK start") {
+		t.Fatalf("output = %q", output.String())
+	}
+	select {
+	case <-stopped:
+	default:
+		t.Fatal("input listener was not stopped")
 	}
 }

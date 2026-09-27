@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +27,29 @@ type remote struct {
 type state struct {
 	InstanceID string `json:"instanceId"`
 }
+
+type midiBinding struct {
+	Status uint8 `json:"status"`
+	Data1  uint8 `json:"data1"`
+}
+
+type keyBinding struct {
+	Action string       `json:"action"`
+	Code   string       `json:"code"`
+	Ctrl   bool         `json:"ctrl"`
+	Shift  bool         `json:"shift"`
+	Alt    bool         `json:"alt"`
+	Meta   bool         `json:"meta"`
+	MIDI   *midiBinding `json:"midi,omitempty"`
+}
+
+type inputEvent struct {
+	Code                   string
+	Ctrl, Shift, Alt, Meta bool
+	MIDI                   *midiBinding
+}
+
+var startInputs = startPlatformInputs
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout); err != nil {
@@ -47,9 +72,17 @@ func run(args []string, output io.Writer) error {
 	}
 	command := flags.Args()
 	if len(command) == 0 {
-		return errors.New("操作を指定してください: status, start, pause, reset, add, subtract, blackout, reveal, hide, show, clear, message, preset")
+		return errors.New("操作を指定してください: listen, status, start, pause, reset, add, subtract, blackout, reveal, hide, show, clear, message, preset")
 	}
 	r := remote{strings.TrimRight(*server, "/") + "/api/v1/timer", &http.Client{Timeout: *timeout}}
+	if command[0] == "listen" {
+		if len(command) != 1 {
+			return errors.New("listenに値は指定できません")
+		}
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		return r.listen(ctx, output)
+	}
 	if command[0] == "status" {
 		if len(command) != 1 {
 			return errors.New("statusに値は指定できません")
@@ -60,6 +93,14 @@ func run(args []string, output io.Writer) error {
 		}
 		return err
 	}
+	if err := r.execute(command); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(output, "OK %s\n", command[0])
+	return err
+}
+
+func (r remote) execute(command []string) error {
 	path, method, body, err := requestFor(command, r)
 	if err != nil {
 		return err
@@ -68,11 +109,74 @@ func run(args []string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := r.send(path, method, body, current.InstanceID); err != nil {
+	return r.send(path, method, body, current.InstanceID)
+}
+
+func (r remote) listen(ctx context.Context, output io.Writer) error {
+	data, _, err := r.get("/bindings")
+	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(output, "OK %s\n", command[0])
-	return err
+	var response struct {
+		Bindings []keyBinding `json:"bindings"`
+	}
+	if json.Unmarshal(data, &response) != nil || len(response.Bindings) == 0 {
+		return errors.New("TimeViewのキー割り当てが不正です")
+	}
+	events := make(chan inputEvent, 32)
+	stop, midiDevices, err := startInputs(events)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	if _, err := fmt.Fprintf(output, "入力監視を開始しました（MIDI入力: %d台、終了: Ctrl+C）\n", midiDevices); err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case event := <-events:
+			action := actionFor(response.Bindings, event)
+			command := commandForAction(action)
+			if command == nil {
+				continue
+			}
+			if err := r.execute(command); err != nil {
+				_, _ = fmt.Fprintf(output, "ERROR %s: %v\n", action, err)
+				continue
+			}
+			_, _ = fmt.Fprintf(output, "OK %s\n", action)
+		}
+	}
+}
+
+func actionFor(bindings []keyBinding, event inputEvent) string {
+	for _, binding := range bindings {
+		if event.MIDI != nil && binding.MIDI != nil && *event.MIDI == *binding.MIDI {
+			return binding.Action
+		}
+		if event.MIDI == nil && binding.Code == event.Code && binding.Ctrl == event.Ctrl && binding.Shift == event.Shift && binding.Alt == event.Alt && binding.Meta == event.Meta {
+			return binding.Action
+		}
+	}
+	return ""
+}
+
+func commandForAction(action string) []string {
+	if strings.HasPrefix(action, "preset") {
+		number, err := strconv.Atoi(strings.TrimPrefix(action, "preset"))
+		if err == nil && number >= 0 && number < 9 {
+			return []string{"preset", strconv.Itoa(number + 1)}
+		}
+		return nil
+	}
+	switch action {
+	case "start", "pause", "reset", "add", "subtract", "blackout", "reveal", "hide", "show", "clear":
+		return []string{action}
+	default:
+		return nil
+	}
 }
 
 func requestFor(args []string, r remote) (string, string, any, error) {
