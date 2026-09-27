@@ -33,35 +33,6 @@ JSONを手作業で編集する場合はTimeViewを終了してから変更し�
 
 設定画面の「ブラウザからの操作だけを許可」を有効にすると、外部APIのGET・SSEは利用できますが、変更要求は403になります。操作画面と、その画面で有効にしたKeypadからは引き続き操作できます。この機能は分離LAN内の誤操作防止用で、認証機能ではありません。
 
-## 開発
-
-検証環境: Go 1.27.1、Node.js 24.16.0 / npm 11.13.0、Task 3.45.4（Taskfile v3）。Go依存は`go.mod`と`go.sum`、フロント依存は`package-lock.json`で固定しています。
-
-バックエンドはGin v1.12でHTTPルーティングとミドルウェア、Koanf v2でJSON設定、go-playground/validatorで構造体検証、`golang.org/x/time/rate`でAPI流量制限を実装しています。タイマー状態は引き続きメモリ内に保持し、CGOは使用しません。選定理由と適用範囲は[依存ライブラリの選定](docs/DEPENDENCIES.md)を参照してください。
-
-```sh
-task setup
-# 別ターミナルでそれぞれ起動
-task dev:backend
-task dev:frontend
-```
-
-Viteはターミナルに表示される開発URLで開きます。`/api` はGoの8080ポートへプロキシします。開発用Go起動前にもフロントをビルドし、embed対象を準備します。
-
-```sh
-task fmt
-task lint
-task test
-task build
-task release
-```
-
-- `task build`: 現在のOS / CPU向けバイナリを生成。
-- `task release`: Windows amd64、macOS amd64 / arm64、Linux amd64 / arm64を生成。
-- 本番実行時はGo・Node.js・Task・DBは不要。配布先に実行ファイルを渡します。
-- 依存取得は開発環境で事前に行います。会場内でインターネットへ接続しません。
-- Go検証の対象は `. ./internal/... ./web`。`node_modules` 内の他社Goコードを対象に含めません。
-
 ## Keypad
 
 操作画面でKeypadをONにし、その画面を前面にしてください。フォーカスが外れるとOFFになります。カスタム割り当てはJSON設定へ保存され、ブラウザ再読み込みやサーバー再起動後も復元されます。安全のためKeypadのON/OFF状態は保存せず、常にOFFから始まります。
@@ -75,34 +46,9 @@ task release
 | テンキー1～9 | 定型文を即時送信 |
 | テンキー0 / × / ÷ | カンペ非表示 / 再表示 / 消去 |
 
-## API例
-
-PowerShell:
-
-```powershell
-$base = 'http://127.0.0.1:8080/api/v1/timer'
-Invoke-RestMethod "$base/commands" -Method Post -ContentType 'application/json' -Body '{"command":"start"}'
-Invoke-RestMethod "$base/blackout" -Method Put -ContentType 'application/json' -Body '{"enabled":true}'
-$headers = @{ 'Idempotency-Key' = [guid]::NewGuid().ToString() }
-Invoke-RestMethod "$base/commands" -Method Post -Headers $headers -ContentType 'application/json' -Body '{"command":"adjust","deltaSeconds":60}'
-```
-
-curl:
-
-```sh
-curl http://127.0.0.1:8080/api/v1/timer
-curl -X PUT http://127.0.0.1:8080/api/v1/timer/blackout -H 'Content-Type: application/json' -d '{"enabled":false}'
-curl -N http://127.0.0.1:8080/api/v1/timer/events
-```
-
-設定変更はGET応答のETagを`If-Match`で送ります。加減算は`Idempotency-Key`が必須。同じ要求の再送では同じキー・本文を使ってください。記録は同一起動中の10分間有効です。任意の`X-Timeview-Instance`に取得したinstanceIdを付けると、再起動前の操作を409で拒否します。
-
-ブラウザ操作限定が有効な間、上記PowerShell・curlの変更例は403になります。解除はTimeViewの設定画面から行います。操作画面が使えない場合はTimeViewを終了し、設定JSONの`browserOnly`を`false`へ変更して再起動してください。
-
 ## ドキュメント
 
+- [開発ガイドとAPI利用例](docs/DEVELOPMENT.md)
 - [仕様書](docs/SPECIFICATION.md)
 - [OpenAPI](docs/openapi.json)
 - [動作確認結果と未確認項目](docs/VALIDATION.md)
-
-ローカルGitリポジトリとして管理しています。GitHub等へのリモート作成・pushは行っていません。
