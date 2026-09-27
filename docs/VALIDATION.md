@@ -35,6 +35,7 @@
 - 実ブラウザで「ブラウザからの操作だけを許可」を有効化でき、設定JSONへ保存される。有効中もGETは成功し、外部クライアントの変更要求は403となる。同じブラウザから無効化できる。
 - `timeview-remote.exe`から状態取得、開始、一時停止、暗転、カンペ送信を行い、サーバーの状態と操作ログへ反映される。
 - `timeview-remote.exe listen`がサーバーから割り当てを取得して入力監視を開始する。
+- KORG nanoPAD2を接続するとWinMM MIDI入力1台として認識する。パッドからNote On（channel 1、note 47）を受信し、この入力を開始へ割り当てた`timeview-remote.exe listen`が`OK start`を出力して、サーバー状態が`idle`から`running`へ変化する。
 
 ## 生成した配布対象
 
@@ -61,7 +62,7 @@ Windows amd64のstrip済みバイナリで、Gin既定ビルドと`nomsgpack`ビ
 
 ## 未確認項目
 
-- 物理MIDIコントローラーを使ったChrome／EdgeとUIなしリモコンでのMIDI入力、長押し、抜き差し。今回はMIDIメッセージの単体テストと設定保存・復元を確認。
+- 物理MIDIコントローラーを使ったChrome／EdgeでのMIDI Learn、Control Change、長押し、抜き差し。UIなしリモコンではnanoPAD2のNote Onと操作反映を確認済み。
 - Dockerが開発環境へ未導入のため、ローカルでのイメージビルドとコンテナ起動。CIの`docker build`とDocker利用環境で確認する。
 - macOS／Linux実機での起動、ブラウザ表示、Keypad入力。クロスコンパイル成功のみ確認済み。
 - Windows以外のブラウザ、およびWindows上の物理USBテンキー。今回のKeypad確認はブラウザへ送ったテンキーイベントとWindowsキーコード変換の単体テストによる。
