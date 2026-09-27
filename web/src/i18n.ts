@@ -74,6 +74,11 @@ const resources = {
           "この画面を前面にして操作します。フォーカスが外れるとOFFになります。",
         disableKeypad: "Keypadを無効にする",
         enableKeypad: "Keypadを有効にする",
+        midiHint:
+          "MIDI Learnで割り当てたNoteまたはCCを受信します。MIDIコンはこのPCへ接続してください。",
+        disableMidi: "MIDIを無効にする",
+        enableMidi: "MIDIを有効にする",
+        midiUnsupported: "このブラウザはWeb MIDIに対応していません。",
         message: "カンペ",
         messageVisible: "表示設定 ON",
         hidden: "非表示",
@@ -86,11 +91,13 @@ const resources = {
         showAgain: "再表示",
       },
       settings: {
-        bindings: "キー割り当て",
+        bindings: "キー・MIDI割り当て",
         defaults: "既定に戻す",
         bindingHint:
-          "変更を押してキーを入力。Escでキャンセル。変更はJSON設定へ保存します。",
+          "キーまたはMIDI Learnを選んで入力します。変更はJSON設定へ保存します。",
         enterKey: "キーを入力…",
+        enterMidi: "MIDIを入力…",
+        clearMidi: "MIDI割り当てを解除",
         integration: "外部連携",
         readOnly: "参照のみ",
         integrationReadOnly:
@@ -171,6 +178,9 @@ const resources = {
         operationFailed: "操作に失敗しました",
         noAutomaticRetry:
           "自動再送は行いません。現在の状態を確認してください。",
+        midiUnsupported: "このブラウザはWeb MIDIに対応していません",
+        midiDenied: "MIDIデバイスへのアクセスが許可されませんでした",
+        duplicateMidi: "このMIDI入力はすでに割り当てられています",
       },
     },
   },
@@ -248,6 +258,11 @@ const resources = {
           "Keep this screen in front. Keypad turns off when focus is lost.",
         disableKeypad: "Disable keypad",
         enableKeypad: "Enable keypad",
+        midiHint:
+          "Receives learned MIDI notes or CC messages. Connect the controller to this computer.",
+        disableMidi: "Disable MIDI",
+        enableMidi: "Enable MIDI",
+        midiUnsupported: "This browser does not support Web MIDI.",
         message: "Message",
         messageVisible: "Visible",
         hidden: "Hidden",
@@ -260,11 +275,13 @@ const resources = {
         showAgain: "Show",
       },
       settings: {
-        bindings: "Key bindings",
+        bindings: "Key & MIDI bindings",
         defaults: "Restore defaults",
         bindingHint:
-          "Select a binding and press a key. Esc cancels. Changes are saved to JSON.",
+          "Select a key or MIDI Learn, then send the input. Changes are saved to JSON.",
         enterKey: "Press a key…",
+        enterMidi: "Send MIDI…",
+        clearMidi: "Clear MIDI binding",
         integration: "Integrations",
         readOnly: "Read only",
         integrationReadOnly:
@@ -346,6 +363,9 @@ const resources = {
         operationFailed: "操作に失敗しました",
         noAutomaticRetry:
           "自動再送は行いません。現在の状態を確認してください。",
+        midiUnsupported: "このブラウザはWeb MIDIに対応していません",
+        midiDenied: "MIDIデバイスへのアクセスが許可されませんでした",
+        duplicateMidi: "このMIDI入力はすでに割り当てられています",
       },
     },
   },

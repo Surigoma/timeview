@@ -138,7 +138,9 @@ export type Binding = {
   shift: boolean;
   alt: boolean;
   meta: boolean;
+  midi?: MidiBinding;
 };
+export type MidiBinding = { status: number; data1: number };
 export type StoredBinding = Omit<Binding, "label">;
 const bind = (action: string, code: string, ctrl = false): Binding => ({
   action,
@@ -179,6 +181,7 @@ export function storeBindings(bindings: Binding[]): StoredBinding[] {
     shift: binding.shift,
     alt: binding.alt,
     meta: binding.meta,
+    ...(binding.midi ? { midi: binding.midi } : {}),
   }));
 }
 export function restoreBindings(bindings: StoredBinding[]): Binding[] {
@@ -218,6 +221,30 @@ export function keyLabel(b: Binding) {
   ]
     .filter(Boolean)
     .join(" + ");
+}
+
+export function midiInput(data: ArrayLike<number>) {
+  if (data.length < 3) return null;
+  let status = data[0];
+  const kind = status & 0xf0;
+  if (kind === 0x80) status = 0x90 | (status & 0x0f);
+  else if (kind !== 0x90 && kind !== 0xb0) return null;
+  return {
+    binding: { status, data1: data[1] } satisfies MidiBinding,
+    active: kind !== 0x80 && data[2] > 0,
+  };
+}
+
+export function midiMatches(binding: Binding, midi: MidiBinding) {
+  return (
+    binding.midi?.status === midi.status && binding.midi.data1 === midi.data1
+  );
+}
+
+export function midiLabel(midi?: MidiBinding) {
+  if (!midi) return "MIDI Learn";
+  const type = (midi.status & 0xf0) === 0x90 ? "Note" : "CC";
+  return `${type} ${midi.data1} · Ch ${(midi.status & 0x0f) + 1}`;
 }
 
 // crypto.randomUUID is unavailable on plain HTTP LAN addresses in some browsers.

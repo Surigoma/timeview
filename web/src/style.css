@@ -375,6 +375,21 @@ main {
   color: var(--muted);
   font-size: 12px;
 }
+.midi-control {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #282e3a;
+}
+.binding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.bindings > div > span {
+  flex: 1;
+}
 .key-summary > div,
 .bindings > div {
   display: flex;

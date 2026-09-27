@@ -1506,6 +1506,37 @@
           },
           "meta": {
             "type": "boolean"
+          },
+          "midi": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "data1"
+            ],
+            "properties": {
+              "status": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 144,
+                    "maximum": 159
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 176,
+                    "maximum": 191
+                  }
+                ],
+                "description": "Note On (0x9n) または Control Change (0xBn) のステータスバイト"
+              },
+              "data1": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127,
+                "description": "ノート番号またはコントローラー番号"
+              }
+            }
           }
         }
       }

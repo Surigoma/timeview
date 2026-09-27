@@ -12,6 +12,10 @@ export function ControlScreen({
   keypad,
   setKeypad,
   lastKey,
+  midiEnabled,
+  midiSupported,
+  toggleMidi,
+  lastMidi,
 }: {
   timer: TimerConnection;
   presets: string[];
@@ -19,6 +23,10 @@ export function ControlScreen({
   keypad: boolean;
   setKeypad: (enabled: boolean) => void;
   lastKey: string;
+  midiEnabled: boolean;
+  midiSupported: boolean;
+  toggleMidi: () => void;
+  lastMidi: string;
 }) {
   const [overflow, setOverflow] = useState(false);
   const state = timer.state!;
@@ -167,6 +175,28 @@ export function ControlScreen({
         <p aria-live="polite" className="last-key">
           {lastKey}
         </p>
+        <div className="midi-control">
+          <div className="panel-title">
+            <strong>MIDI</strong>
+            <span className={`badge ${midiEnabled ? "accent" : ""}`}>
+              {midiEnabled ? t("common.enabled") : t("common.off")}
+            </span>
+          </div>
+          <p className="hint">{t("control.midiHint")}</p>
+          <button
+            disabled={!timer.connected || !midiSupported}
+            className={midiEnabled ? "primary" : ""}
+            onClick={toggleMidi}
+          >
+            {midiEnabled ? t("control.disableMidi") : t("control.enableMidi")}
+          </button>
+          {!midiSupported && (
+            <p className="warning">{t("control.midiUnsupported")}</p>
+          )}
+          <p aria-live="polite" className="last-key">
+            {lastMidi}
+          </p>
+        </div>
         <div className="key-summary">
           {bindings.slice(0, 4).map((binding) => (
             <div key={binding.action}>

@@ -15,6 +15,8 @@ task dev:frontend
 
 Viteは表示された開発URLで開く。`/api`とSSEはGoの8080ポートへプロキシされる。GoサーバーはReact成果物を埋め込むため、`dev:backend`でも先にフロントをビルドする。
 
+MIDI入力はブラウザ標準のWeb MIDI APIを直接使用し、追加ライブラリやネイティブドライバー連携は持たない。Note OnとControl ChangeだけをMIDI Learnの対象とする。
+
 ## 検証とビルド
 
 ```sh

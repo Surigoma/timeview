@@ -5,6 +5,9 @@ import {
   bindingLabel,
   formatTime,
   matches,
+  midiInput,
+  midiLabel,
+  midiMatches,
   defaultBindings,
   elapsedPercent,
   phase,
@@ -33,6 +36,25 @@ test("operation errors always have a Japanese fallback", () => {
     operationError("設定が競合しました"),
     "設定が競合しました。自動再送は行いません。現在の状態を確認してください。",
   );
+});
+
+test("MIDI note and control inputs normalize press and release", () => {
+  assert.deepEqual(midiInput([0x92, 36, 127]), {
+    binding: { status: 0x92, data1: 36 },
+    active: true,
+  });
+  assert.deepEqual(midiInput([0x82, 36, 0]), {
+    binding: { status: 0x92, data1: 36 },
+    active: false,
+  });
+  assert.deepEqual(midiInput([0xb0, 64, 0]), {
+    binding: { status: 0xb0, data1: 64 },
+    active: false,
+  });
+  assert.equal(midiInput([0xe0, 0, 0]), null);
+  const binding = { ...defaultBindings[0], midi: { status: 0x92, data1: 36 } };
+  assert.equal(midiMatches(binding, { status: 0x92, data1: 36 }), true);
+  assert.equal(midiLabel(binding.midi), "Note 36 · Ch 3");
 });
 test("blackout shortcut never also adjusts time; repeats ignored", () => {
   const event = {

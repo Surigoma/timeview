@@ -29,6 +29,7 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 
 	bindings := server.model.Bindings()
 	bindings[0].Code = "KeyS"
+	bindings[0].MIDI = &timer.MIDIBinding{Status: 0x90, Data1: 36}
 	body, err := json.Marshal(map[string]any{"bindings": bindings})
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +69,7 @@ func TestConfigPersistsPreferencesButNotLiveState(t *testing.T) {
 		t.Fatalf("presets were not restored: %#v", presets)
 	}
 	bindings = got.Bindings()
-	if bindings[0].Code != "KeyS" {
+	if bindings[0].Code != "KeyS" || bindings[0].MIDI == nil || bindings[0].MIDI.Data1 != 36 {
 		t.Fatalf("bindings were not restored: %#v", bindings[0])
 	}
 }

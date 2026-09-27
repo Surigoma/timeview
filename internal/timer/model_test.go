@@ -111,11 +111,18 @@ func TestTextPresetAndBindingValidation(t *testing.T) {
 	resetWithoutModifier[4].Ctrl = false
 	invalidUTF8 := append([]KeyBinding{}, bindings...)
 	invalidUTF8[0].Code = string([]byte{0xff})
+	duplicateMIDI := append([]KeyBinding{}, bindings...)
+	duplicateMIDI[0].MIDI = &MIDIBinding{Status: 0x90, Data1: 36}
+	duplicateMIDI[1].MIDI = &MIDIBinding{Status: 0x90, Data1: 36}
+	invalidMIDI := append([]KeyBinding{}, bindings...)
+	invalidMIDI[0].MIDI = &MIDIBinding{Status: 0x80, Data1: 36}
 	for name, candidate := range map[string][]KeyBinding{
 		"duplicate action": duplicateAction,
 		"duplicate key":    duplicateKey,
 		"unsafe reset":     resetWithoutModifier,
 		"invalid UTF-8":    invalidUTF8,
+		"duplicate MIDI":   duplicateMIDI,
+		"invalid MIDI":     invalidMIDI,
 		"wrong count":      bindings[:18],
 	} {
 		t.Run(name, func(t *testing.T) {

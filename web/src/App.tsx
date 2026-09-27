@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ControlScreen } from "./ControlScreen";
 import { LogsScreen } from "./LogsScreen";
 import { SettingsScreen } from "./SettingsScreen";
@@ -9,14 +9,45 @@ import {
   bindingLabel,
   defaultBindings,
   matches,
+  midiInput,
+  midiMatches,
   restoreBindings,
   storeBindings,
 } from "./timer";
 import type { Binding } from "./timer";
 import { useTimer } from "./useTimer";
+import type { TimerConnection } from "./useTimer";
+
+function sendAction(
+  action: string,
+  send: TimerConnection["send"],
+  setError: TimerConnection["setError"],
+  presets: string[],
+) {
+  if (action === "blackout" || action === "reveal")
+    return send("/blackout", { enabled: action === "blackout" }, "PUT");
+  if (action === "hide" || action === "show")
+    return send("/message", { visible: action === "show" }, "PUT");
+  if (action === "clear") return send("/message", undefined, "DELETE");
+  if (action.startsWith("preset")) {
+    const text = presets[Number(action.slice(6))];
+    if (!text) {
+      setError(t("app.unsetPreset"));
+      return Promise.resolve(false);
+    }
+    return send("/message", { text }, "PUT");
+  }
+  if (action === "add" || action === "subtract")
+    return send("/commands", {
+      command: "adjust",
+      deltaSeconds: action === "add" ? 60 : -60,
+    });
+  return send("/commands", { command: action });
+}
 
 export default function App() {
   const timer = useTimer();
+  const { busy, connected, send, setError } = timer;
   const display = location.pathname === "/display";
   const touch = location.pathname === "/touch";
   const [tab, setTab] = useState(
@@ -31,9 +62,14 @@ export default function App() {
   );
   const [keypad, setKeypad] = useState(false);
   const [lastKey, setLastKey] = useState(t("app.inputWaiting"));
+  const [midiEnabled, setMidiEnabled] = useState(false);
+  const [midiRecord, setMidiRecord] = useState<string | null>(null);
+  const [lastMidi, setLastMidi] = useState(t("app.inputWaiting"));
   const [presets, setPresets] = useState<string[]>([]);
   const [record, setRecord] = useState<string | null>(null);
   const lastInput = useRef({ action: "", at: 0 });
+  const midiAccess = useRef<MIDIAccess | null>(null);
+  const activeMidi = useRef(new Set<string>());
   const configGeneration = useRef(0);
   const boot = timer.state?.instanceId;
   const version = timer.state?.version;
@@ -42,7 +78,42 @@ export default function App() {
   useEffect(() => {
     setLanguage(language);
     setLastKey(t("app.inputWaiting"));
+    setLastMidi(t("app.inputWaiting"));
   }, [language]);
+
+  const connectMidi = useCallback(async () => {
+    if (!("requestMIDIAccess" in navigator)) {
+      setError(t("errors.midiUnsupported"));
+      return false;
+    }
+    try {
+      midiAccess.current ??= await navigator.requestMIDIAccess();
+      setMidiEnabled(true);
+      return true;
+    } catch {
+      setError(t("errors.midiDenied"));
+      return false;
+    }
+  }, [setError]);
+
+  const executeAction = useCallback(
+    (action: string, midi = false) => {
+      const now = performance.now();
+      if (
+        busy ||
+        (lastInput.current.action === action &&
+          now - lastInput.current.at < 300)
+      )
+        return;
+      lastInput.current = { action, at: now };
+      void sendAction(action, send, setError, presets).then((ok) =>
+        (midi ? setLastMidi : setLastKey)(
+          `${bindingLabel(action)} · ${ok ? t("app.executed") : t("app.notExecuted")}`,
+        ),
+      );
+    },
+    [busy, presets, send, setError],
+  );
 
   useEffect(() => {
     if (display || !boot) return;
@@ -70,6 +141,7 @@ export default function App() {
     const off = () => {
       setKeypad(false);
       setRecord(null);
+      setMidiRecord(null);
     };
     window.addEventListener("blur", off);
     document.addEventListener("visibilitychange", off);
@@ -79,8 +151,11 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (!timer.connected) setKeypad(false);
-  }, [timer.connected]);
+    if (!connected) {
+      setKeypad(false);
+      setMidiEnabled(false);
+    }
+  }, [connected]);
 
   useEffect(() => {
     if (display) return;
@@ -112,7 +187,7 @@ export default function App() {
           !binding.alt &&
           !binding.meta
         ) {
-          timer.setError("リセットには修飾キーが必要です");
+          setError("リセットには修飾キーが必要です");
           return;
         }
         if (
@@ -120,27 +195,22 @@ export default function App() {
             (other) => other.action !== record && matches(other, event),
           )
         ) {
-          timer.setError("このキーはすでに割り当てられています");
+          setError("このキーはすでに割り当てられています");
           return;
         }
         const next = bindings.map((other) =>
           other.action === record ? binding : other,
         );
         setRecord(null);
-        timer.setError("");
-        void timer
-          .send("/bindings", { bindings: storeBindings(next) }, "PUT")
-          .then((ok) => {
+        setError("");
+        void send("/bindings", { bindings: storeBindings(next) }, "PUT").then(
+          (ok) => {
             if (ok) setBindings(next);
-          });
+          },
+        );
         return;
       }
-      if (
-        !keypad ||
-        !timer.connected ||
-        !document.hasFocus() ||
-        document.hidden
-      )
+      if (!keypad || !connected || !document.hasFocus() || document.hidden)
         return;
       const target = event.target;
       if (
@@ -151,50 +221,89 @@ export default function App() {
       const binding = bindings.find((item) => matches(item, event));
       if (!binding) return;
       event.preventDefault();
-      const now = performance.now();
-      if (
-        timer.busy ||
-        (lastInput.current.action === binding.action &&
-          now - lastInput.current.at < 300)
-      )
-        return;
-      lastInput.current = { action: binding.action, at: now };
-      const sendAction = () => {
-        const action = binding.action;
-        if (action === "blackout" || action === "reveal")
-          return timer.send(
-            "/blackout",
-            { enabled: action === "blackout" },
-            "PUT",
-          );
-        if (action === "hide" || action === "show")
-          return timer.send("/message", { visible: action === "show" }, "PUT");
-        if (action === "clear")
-          return timer.send("/message", undefined, "DELETE");
-        if (action.startsWith("preset")) {
-          const text = presets[Number(action.slice(6))];
-          if (!text) {
-            timer.setError("この定型文は未設定です");
-            return Promise.resolve(false);
-          }
-          return timer.send("/message", { text }, "PUT");
-        }
-        if (action === "add" || action === "subtract")
-          return timer.send("/commands", {
-            command: "adjust",
-            deltaSeconds: action === "add" ? 60 : -60,
-          });
-        return timer.send("/commands", { command: action });
-      };
-      void sendAction().then((ok) =>
-        setLastKey(
-          `${bindingLabel(binding.action)} · ${ok ? t("app.executed") : t("app.notExecuted")}`,
-        ),
-      );
+      executeAction(binding.action);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [display, record, bindings, keypad, timer, presets]);
+  }, [
+    display,
+    record,
+    bindings,
+    keypad,
+    connected,
+    setError,
+    send,
+    executeAction,
+  ]);
+
+  useEffect(() => {
+    const access = midiAccess.current;
+    if (!access) return;
+    const handler = (event: MIDIMessageEvent) => {
+      if (!event.data) return;
+      const input = midiInput(event.data);
+      if (!input) return;
+      const id = `${input.binding.status}:${input.binding.data1}`;
+      if (!input.active) {
+        activeMidi.current.delete(id);
+        return;
+      }
+      if (activeMidi.current.has(id)) return;
+      activeMidi.current.add(id);
+      if (midiRecord) {
+        if (
+          bindings.some(
+            (binding) =>
+              binding.action !== midiRecord &&
+              midiMatches(binding, input.binding),
+          )
+        ) {
+          setError(t("errors.duplicateMidi"));
+          return;
+        }
+        const next = bindings.map((binding) =>
+          binding.action === midiRecord
+            ? { ...binding, midi: input.binding }
+            : binding,
+        );
+        setMidiRecord(null);
+        setError("");
+        void send("/bindings", { bindings: storeBindings(next) }, "PUT").then(
+          (ok) => {
+            if (ok) setBindings(next);
+          },
+        );
+        return;
+      }
+      if (!midiEnabled || !connected) return;
+      const binding = bindings.find((item) => midiMatches(item, input.binding));
+      if (binding) executeAction(binding.action, true);
+    };
+    const attach = () =>
+      access.inputs.forEach((input) => {
+        input.onmidimessage = handler;
+      });
+    const stateChange = () => {
+      activeMidi.current.clear();
+      attach();
+    };
+    attach();
+    access.addEventListener("statechange", stateChange);
+    return () => {
+      access.removeEventListener("statechange", stateChange);
+      access.inputs.forEach((input) => {
+        if (input.onmidimessage === handler) input.onmidimessage = null;
+      });
+    };
+  }, [
+    bindings,
+    executeAction,
+    midiEnabled,
+    midiRecord,
+    connected,
+    send,
+    setError,
+  ]);
 
   if (display) {
     return timer.state ? (
@@ -242,6 +351,7 @@ export default function App() {
             setTab("control");
             setKeypad(false);
             setRecord(null);
+            setMidiRecord(null);
           }}
         >
           {t("app.control")}
@@ -251,6 +361,7 @@ export default function App() {
           onClick={() => {
             setTab("settings");
             setKeypad(false);
+            setMidiRecord(null);
           }}
         >
           {t("app.settings")}
@@ -261,6 +372,7 @@ export default function App() {
             setTab("logs");
             setKeypad(false);
             setRecord(null);
+            setMidiRecord(null);
           }}
         >
           {t("app.logs")}
@@ -307,6 +419,13 @@ export default function App() {
             keypad={keypad}
             setKeypad={setKeypad}
             lastKey={lastKey}
+            midiEnabled={midiEnabled}
+            midiSupported={"requestMIDIAccess" in navigator}
+            toggleMidi={() => {
+              if (midiEnabled) setMidiEnabled(false);
+              else void connectMidi();
+            }}
+            lastMidi={lastMidi}
           />
         )}
         {timer.state && tab === "settings" && (
@@ -320,6 +439,12 @@ export default function App() {
               setRecord(action);
             }}
             setBindings={setBindings}
+            midiRecord={midiRecord}
+            setMidiRecord={(action) => {
+              setRecord(null);
+              setMidiRecord(action);
+            }}
+            connectMidi={connectMidi}
           />
         )}
         {tab === "logs" && <LogsScreen language={language} />}

@@ -28,6 +28,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	model.SetPresets([]string{"five minutes", "finish"})
 	bindings := model.Bindings()
 	bindings[0].Code = "KeyS"
+	bindings[0].MIDI = &MIDIBinding{Status: 0x90, Data1: 36}
 	model.SetBindings(bindings)
 	if err := Save(path, model); err != nil {
 		t.Fatal(err)
@@ -46,7 +47,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	if presets := loaded.Presets(); len(presets) != 2 || presets[0] != "five minutes" {
 		t.Fatalf("presets were not restored: %#v", presets)
 	}
-	if got := loaded.Bindings(); got[0].Code != "KeyS" {
+	if got := loaded.Bindings(); got[0].Code != "KeyS" || got[0].MIDI == nil || got[0].MIDI.Data1 != 36 {
 		t.Fatalf("bindings were not restored: %#v", got[0])
 	}
 }
@@ -98,6 +99,15 @@ func TestModelSlicesAreCopied(t *testing.T) {
 	bindings[0].Code = "KeyS"
 	if model.Bindings()[0].Code == "KeyS" {
 		t.Fatal("bindings share caller-owned storage")
+	}
+	midi := MIDIBinding{Status: 0x90, Data1: 36}
+	bindings[0].MIDI = &midi
+	model.SetBindings(bindings)
+	bindings[0].MIDI.Data1 = 37
+	gotBindings := model.Bindings()
+	gotBindings[0].MIDI.Data1 = 38
+	if model.Bindings()[0].MIDI.Data1 != 36 {
+		t.Fatal("MIDI bindings share caller-owned storage")
 	}
 
 	if model.State.ETag() == "" {

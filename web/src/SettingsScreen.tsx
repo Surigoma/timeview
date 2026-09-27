@@ -5,6 +5,7 @@ import {
   bindingLabel,
   defaultBindings,
   keyLabel,
+  midiLabel,
   storeBindings,
 } from "./timer";
 import type { Binding, TimerState } from "./timer";
@@ -17,6 +18,9 @@ export function SettingsScreen({
   record,
   setRecord,
   setBindings,
+  midiRecord,
+  setMidiRecord,
+  connectMidi,
 }: {
   timer: TimerConnection;
   presets: string[];
@@ -24,6 +28,9 @@ export function SettingsScreen({
   record: string | null;
   setRecord: (action: string | null) => void;
   setBindings: (bindings: Binding[]) => void;
+  midiRecord: string | null;
+  setMidiRecord: (action: string | null) => void;
+  connectMidi: () => Promise<boolean>;
 }) {
   const [toast, setToast] = useState("");
   const state = timer.state!;
@@ -56,6 +63,7 @@ export function SettingsScreen({
                   if (ok) setBindings(defaults);
                 });
               setRecord(null);
+              setMidiRecord(null);
             }}
           >
             {t("settings.defaults")}
@@ -66,14 +74,55 @@ export function SettingsScreen({
           {bindings.map((binding) => (
             <div key={binding.action}>
               <span>{bindingLabel(binding.action)}</span>
-              <button
-                className="small"
-                onClick={() => setRecord(binding.action)}
-              >
-                {record === binding.action
-                  ? t("settings.enterKey")
-                  : keyLabel(binding)}
-              </button>
+              <div className="binding-actions">
+                <button
+                  className="small"
+                  onClick={() => {
+                    setMidiRecord(null);
+                    setRecord(binding.action);
+                  }}
+                >
+                  {record === binding.action
+                    ? t("settings.enterKey")
+                    : keyLabel(binding)}
+                </button>
+                <button
+                  className="small"
+                  onClick={() => {
+                    void connectMidi().then((ok) => {
+                      if (ok) setMidiRecord(binding.action);
+                    });
+                  }}
+                >
+                  {midiRecord === binding.action
+                    ? t("settings.enterMidi")
+                    : midiLabel(binding.midi)}
+                </button>
+                {binding.midi && (
+                  <button
+                    className="small"
+                    aria-label={t("settings.clearMidi")}
+                    onClick={() => {
+                      const next = bindings.map((item) =>
+                        item.action === binding.action
+                          ? { ...item, midi: undefined }
+                          : item,
+                      );
+                      void timer
+                        .send(
+                          "/bindings",
+                          { bindings: storeBindings(next) },
+                          "PUT",
+                        )
+                        .then((ok) => {
+                          if (ok) setBindings(next);
+                        });
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

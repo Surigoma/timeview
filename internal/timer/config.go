@@ -24,12 +24,18 @@ const configVersion = 1
 var configValidator = validator.New(validator.WithRequiredStructEnabled())
 
 type KeyBinding struct {
-	Action string `json:"action" validate:"required,oneof=start pause add subtract reset hide show clear blackout reveal preset0 preset1 preset2 preset3 preset4 preset5 preset6 preset7 preset8"`
-	Code   string `json:"code" validate:"required,max=64"`
-	Ctrl   bool   `json:"ctrl"`
-	Shift  bool   `json:"shift"`
-	Alt    bool   `json:"alt"`
-	Meta   bool   `json:"meta"`
+	Action string       `json:"action" validate:"required,oneof=start pause add subtract reset hide show clear blackout reveal preset0 preset1 preset2 preset3 preset4 preset5 preset6 preset7 preset8"`
+	Code   string       `json:"code" validate:"required,max=64"`
+	Ctrl   bool         `json:"ctrl"`
+	Shift  bool         `json:"shift"`
+	Alt    bool         `json:"alt"`
+	Meta   bool         `json:"meta"`
+	MIDI   *MIDIBinding `json:"midi,omitempty"`
+}
+
+type MIDIBinding struct {
+	Status uint8 `json:"status"`
+	Data1  uint8 `json:"data1"`
 }
 
 type timerConfig struct {
@@ -87,7 +93,12 @@ func ValidateBindings(bindings []KeyBinding) error {
 		return Invalid("キー割り当ての内容が不正です")
 	}
 	seenActions := make(map[string]struct{}, len(bindings))
-	seenKeys := make(map[KeyBinding]struct{}, len(bindings))
+	type keyboardBinding struct {
+		Code                   string
+		Ctrl, Shift, Alt, Meta bool
+	}
+	seenKeys := make(map[keyboardBinding]struct{}, len(bindings))
+	seenMIDI := make(map[MIDIBinding]struct{}, len(bindings))
 	for _, binding := range bindings {
 		if _, ok := seenActions[binding.Action]; ok {
 			return Invalid("キー操作が重複しています")
@@ -96,12 +107,21 @@ func ValidateBindings(bindings []KeyBinding) error {
 		if !utf8.ValidString(binding.Code) || len(binding.Code) == 0 || utf8.RuneCountInString(binding.Code) > 64 {
 			return Invalid("キーコードは1～64文字にしてください")
 		}
-		key := binding
-		key.Action = ""
+		key := keyboardBinding{binding.Code, binding.Ctrl, binding.Shift, binding.Alt, binding.Meta}
 		if _, ok := seenKeys[key]; ok {
 			return Invalid("同じキーが複数の操作に割り当てられています")
 		}
 		seenKeys[key] = struct{}{}
+		if binding.MIDI != nil {
+			kind := binding.MIDI.Status & 0xf0
+			if (kind != 0x90 && kind != 0xb0) || binding.MIDI.Data1 > 127 {
+				return Invalid("MIDI割り当てはNote OnまたはControl Changeを指定してください")
+			}
+			if _, ok := seenMIDI[*binding.MIDI]; ok {
+				return Invalid("同じMIDI入力が複数の操作に割り当てられています")
+			}
+			seenMIDI[*binding.MIDI] = struct{}{}
+		}
 		if binding.Action == "reset" && !binding.Ctrl && !binding.Shift && !binding.Alt && !binding.Meta {
 			return Invalid("リセットには修飾キーが必要です")
 		}

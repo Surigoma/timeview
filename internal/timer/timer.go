@@ -71,10 +71,21 @@ func (m Model) Presets() []string { return append([]string{}, m.presets...) }
 
 func (m *Model) SetPresets(presets []string) { m.presets = append([]string{}, presets...) }
 
-func (m Model) Bindings() []KeyBinding { return append([]KeyBinding{}, m.bindings...) }
+func (m Model) Bindings() []KeyBinding { return copyBindings(m.bindings) }
 
 func (m *Model) SetBindings(bindings []KeyBinding) {
-	m.bindings = append([]KeyBinding{}, bindings...)
+	m.bindings = copyBindings(bindings)
+}
+
+func copyBindings(bindings []KeyBinding) []KeyBinding {
+	result := append([]KeyBinding{}, bindings...)
+	for i := range result {
+		if result[i].MIDI != nil {
+			midi := *result[i].MIDI
+			result[i].MIDI = &midi
+		}
+	}
+	return result
 }
 
 func (s State) ETag() string { return fmt.Sprintf(`"%s:%d"`, s.InstanceID, s.Version) }
