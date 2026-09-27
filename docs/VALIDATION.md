@@ -1,7 +1,7 @@
 # TimeView 動作確認結果
 
-- 確認日: 2026-09-26
-- 対象: 依存パッケージ更新後
+- 確認日: 2026-09-27
+- 対象: `nomsgpack`による配布バイナリ縮小後
 - 開発環境: Windows amd64、Go 1.27.1、Node.js 24.16.0、npm 11.13.0、Task 3.45.4
 
 ## 自動確認
@@ -44,6 +44,17 @@
 | Linux arm64 | `dist/linux-arm64/timeview` |
 
 `dist/`は生成物のためGit管理外。必要な環境で`task release`を実行して再生成する。
+
+### バイナリサイズ
+
+Windows amd64のstrip済みバイナリで、Gin既定ビルドと`nomsgpack`ビルドを同じ条件で比較した。
+
+| 条件 | サイズ |
+| --- | ---: |
+| Gin既定 | 22,484,480 bytes |
+| `nomsgpack` | 15,963,136 bytes |
+
+未使用のMsgPack binding／renderingを除外し、6,521,344 bytes（約29.0%）削減した。JSON API、HTML配信、SSEには影響しない。TaskfileとGitHub Actionsの実行・vet・test・buildへ同じタグを適用している。
 
 ## 未確認項目
 

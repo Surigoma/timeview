@@ -15,7 +15,7 @@ tasks:
     desc: Start Go API on 127.0.0.1:8080
     cmds:
       - task: web:build
-      - go run -buildvcs=false . {{.CLI_ARGS}}
+      - go run -tags=nomsgpack -buildvcs=false . {{.CLI_ARGS}}
   dev:frontend:
     desc: Start Vite (API and SSE proxy to Go)
     dir: web
@@ -29,13 +29,13 @@ tasks:
     desc: Check Go, TypeScript and ESLint
     cmds:
       - task: web:build
-      - go vet . ./internal/... ./web
+      - go vet -tags=nomsgpack . ./internal/... ./web
       - '{{.NPM}} --prefix web run lint'
   test:
     desc: Run backend and frontend tests
     cmds:
       - task: web:build
-      - go test . ./internal/... ./web
+      - go test -tags=nomsgpack . ./internal/... ./web
       - '{{.NPM}} --prefix web test'
   web:build:
     internal: true
@@ -54,7 +54,7 @@ tasks:
       GOOS: '{{.TARGET_OS}}'
       GOARCH: '{{.TARGET_ARCH}}'
     cmds:
-      - go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview{{if eq .TARGET_OS "windows"}}.exe{{end}} .
+      - go build -tags=nomsgpack -buildvcs=false -trimpath -ldflags="-s -w" -o dist/{{.TARGET_OS}}-{{.TARGET_ARCH}}/timeview{{if eq .TARGET_OS "windows"}}.exe{{end}} .
   release:
     desc: Build Windows, macOS and Linux release executables (5 targets)
     cmds:
