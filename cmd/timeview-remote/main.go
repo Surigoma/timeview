@@ -72,7 +72,7 @@ func run(args []string, output io.Writer) error {
 	}
 	command := flags.Args()
 	if len(command) == 0 {
-		return errors.New("操作を指定してください: listen, status, start, pause, reset, add, subtract, blackout, reveal, hide, show, clear, message, preset")
+		command = []string{"listen"}
 	}
 	r := remote{strings.TrimRight(*server, "/") + "/api/v1/timer", &http.Client{Timeout: *timeout}}
 	if command[0] == "listen" {

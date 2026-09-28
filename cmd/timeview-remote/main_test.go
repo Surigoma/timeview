@@ -57,10 +57,29 @@ func TestPresetAndAPIErrors(t *testing.T) {
 }
 
 func TestArgumentValidation(t *testing.T) {
-	for _, args := range [][]string{{}, {"-server", "file:///tmp", "status"}, {"listen", "extra"}, {"add", "0"}, {"preset", "10"}, {"message"}, {"unknown"}} {
+	for _, args := range [][]string{{"-server", "file:///tmp", "status"}, {"listen", "extra"}, {"add", "0"}, {"preset", "10"}, {"message"}, {"unknown"}} {
 		if err := run(args, &strings.Builder{}); err == nil {
 			t.Fatalf("expected error for %#v", args)
 		}
+	}
+}
+
+func TestDefaultCommandListens(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/timer/bindings" {
+			t.Fatalf("unexpected request: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"bindings":[{"action":"start","code":"NumpadEnter"}]}`))
+	}))
+	defer server.Close()
+
+	original := startInputs
+	defer func() { startInputs = original }()
+	startInputs = func(chan<- inputEvent) (func(), int, error) {
+		return nil, 0, context.Canceled
+	}
+	if err := run([]string{"-server", server.URL}, &strings.Builder{}); err != context.Canceled {
+		t.Fatalf("error = %v", err)
 	}
 }
 
