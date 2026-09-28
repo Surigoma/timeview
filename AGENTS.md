@@ -8,6 +8,11 @@
 - `web/src` contains the React/TypeScript control, display, and settings UI.
 - `docs/SPECIFICATION.md` is the behavioral source of truth. Update it when user-visible behavior or API contracts change.
 
+## Code organization
+
+- Split files by responsibility so each file has one clear purpose; move unrelated concerns into focused files.
+- Group related files into folders that make the repository easy to scan, especially as a feature grows.
+
 ## Backend rules
 
 - Keep timer state in memory. Persist preferences only; never persist running state, remaining time, blackout release, or the current message.
