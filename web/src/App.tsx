@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ControlScreen } from "./ControlScreen";
-import { LogsScreen } from "./LogsScreen";
-import { SettingsScreen } from "./SettingsScreen";
-import { Stage } from "./Stage";
-import { TouchScreen } from "./TouchScreen";
+import { Stage } from "./components/Stage";
 import { setLanguage, t } from "./i18n";
+import { ControlScreen } from "./screens/ControlScreen";
+import { LogsScreen } from "./screens/LogsScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
+import { TouchScreen } from "./screens/TouchScreen";
 import {
   bindingLabel,
   defaultBindings,
@@ -13,10 +13,10 @@ import {
   midiMatches,
   restoreBindings,
   storeBindings,
-} from "./timer";
-import type { Binding } from "./timer";
-import { useTimer } from "./useTimer";
-import type { TimerConnection } from "./useTimer";
+} from "./timer/timer";
+import type { Binding } from "./timer/timer";
+import { useTimer } from "./timer/useTimer";
+import type { TimerConnection } from "./timer/useTimer";
 
 function sendAction(
   action: string,

@@ -19,7 +19,7 @@
 
 ## Frontend rules
 
-- Keep timer calculations as pure functions in `web/src/timer.ts` and cover boundary behavior in `web/src/timer.test.ts`.
+- Keep timer calculations as pure functions in `web/src/timer/timer.ts` and cover boundary behavior in `web/src/timer/timer.test.ts`.
 - Keep the stage display free of operational state labels; it should show the timer/message, warning colors, progress gauge, and connection warning only.
 - Maintain accessible labels and progressbar values when changing display controls.
 

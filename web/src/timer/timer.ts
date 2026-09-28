@@ -1,5 +1,5 @@
-import { t } from "./i18n.ts";
-import type { Language } from "./i18n.ts";
+import { t } from "../i18n.ts";
+import type { Language } from "../i18n.ts";
 
 export type TimerState = {
   instanceId: string;

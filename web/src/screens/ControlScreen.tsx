@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { t } from "./i18n";
-import { Stage } from "./Stage";
-import { bindingLabel, formatTime, keyLabel, phase } from "./timer";
-import type { Binding } from "./timer";
-import type { TimerConnection } from "./useTimer";
+import { Stage } from "../components/Stage";
+import { t } from "../i18n";
+import { bindingLabel, formatTime, keyLabel, phase } from "../timer/timer";
+import type { Binding } from "../timer/timer";
+import type { TimerConnection } from "../timer/useTimer";
 
 export function ControlScreen({
   timer,

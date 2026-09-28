@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { operationError, setLanguage, t } from "./i18n";
+import { operationError, setLanguage, t } from "../i18n";
 import type { TimerState } from "./timer";
 import { requestID } from "./timer";
 

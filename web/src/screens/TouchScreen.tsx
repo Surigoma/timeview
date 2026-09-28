@@ -1,6 +1,6 @@
-import { t } from "./i18n";
-import { formatTime, phase } from "./timer";
-import type { TimerConnection } from "./useTimer";
+import { t } from "../i18n";
+import { formatTime, phase } from "../timer/timer";
+import type { TimerConnection } from "../timer/useTimer";
 
 export function TouchScreen({
   timer,

@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
-import { t } from "./i18n";
+import { t } from "../i18n";
 import {
   elapsedPercent,
   foregroundColor,
   formatTime,
   phase,
   warningGauge,
-} from "./timer";
-import type { TimerState } from "./timer";
+} from "../timer/timer";
+import type { TimerState } from "../timer/timer";
 
 export function Stage({
   state,

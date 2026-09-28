@@ -1,15 +1,15 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { t } from "./i18n";
+import { t } from "../i18n";
 import {
   bindingLabel,
   defaultBindings,
   keyLabel,
   midiLabel,
   storeBindings,
-} from "./timer";
-import type { Binding, TimerState } from "./timer";
-import type { TimerConnection } from "./useTimer";
+} from "../timer/timer";
+import type { Binding, TimerState } from "../timer/timer";
+import type { TimerConnection } from "../timer/useTimer";
 
 export function SettingsScreen({
   timer,
