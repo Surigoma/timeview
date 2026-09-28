@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { operationError, setLanguage, t } from "../i18n";
-import type { TimerState } from "./timer";
-import { requestID } from "./timer";
+import { operationError, setLanguage, t } from "../i18n.ts";
+import type { TimerState } from "./timer.ts";
 
 export function useTimer() {
   const [state, setState] = useState<TimerState | null>(null);
@@ -156,3 +155,10 @@ export function useTimer() {
 }
 
 export type TimerConnection = ReturnType<typeof useTimer>;
+
+// crypto.randomUUID is unavailable on plain HTTP LAN addresses in some browsers.
+export function requestID() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (x) => x.toString(16).padStart(2, "0")).join("");
+}

@@ -5,7 +5,8 @@
 - `main.go` wires the embedded React application to the Go HTTP server.
 - `internal/timer` owns timer state, validation, and configuration persistence.
 - `internal/httpserver` owns HTTP routing, middleware, request handling, mutations, and SSE delivery.
-- `web/src` contains the React/TypeScript control, display, and settings UI.
+- `web/src/screens` groups route-level UI and keeps complex screen panels in screen-specific folders.
+- `web/src/input` owns keyboard/MIDI bindings and remote-control effects; `web/src/timer` owns timer calculations and server synchronization.
 - `docs/SPECIFICATION.md` is the behavioral source of truth. Update it when user-visible behavior or API contracts change.
 
 ## Code organization
