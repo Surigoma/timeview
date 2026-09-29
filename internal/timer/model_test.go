@@ -92,6 +92,12 @@ func TestTextPresetAndBindingValidation(t *testing.T) {
 	if err := ValidateText("bad\x00text"); err == nil {
 		t.Fatal("control character was accepted")
 	}
+	if err := ValidateText("bad\x7ftext"); err == nil {
+		t.Fatal("DEL control character was accepted")
+	}
+	if err := ValidateText("bad\u0085text"); err == nil {
+		t.Fatal("C1 control character was accepted")
+	}
 	if err := ValidateText("line one\nline two\tend"); err != nil {
 		t.Fatal(err)
 	}

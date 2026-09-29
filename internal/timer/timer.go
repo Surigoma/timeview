@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -213,7 +214,7 @@ func ValidateText(s string) error {
 		return Invalid("カンペは500文字以内にしてください")
 	}
 	for _, r := range s {
-		if r < 32 && r != '\n' && r != '\t' {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' {
 			return Invalid("使用できない制御文字が含まれています")
 		}
 	}
