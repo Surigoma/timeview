@@ -17,7 +17,6 @@ export function useTimer() {
   const generation = useRef(0);
 
   const accept = useCallback((next: TimerState) => {
-    setLanguage(next.language);
     const prev = current.current;
     if (
       prev &&
@@ -27,8 +26,10 @@ export function useTimer() {
           prev.serverTimeMs > next.serverTimeMs))
     )
       return;
+    setLanguage(next.language);
     if (prev && prev.instanceId !== next.instanceId) {
       generation.current++;
+      setError("");
       setNotice(t("notices.restarted"));
     }
     current.current = next;
@@ -141,8 +142,10 @@ export function useTimer() {
         accept(next);
         return true;
       } catch {
-        setError(operationError(failure));
-        void refresh().catch(() => {});
+        if (generation.current === gen) {
+          setError(operationError(failure));
+          void refresh().catch(() => {});
+        }
         return false;
       } finally {
         pending.current = false;
