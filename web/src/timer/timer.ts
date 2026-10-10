@@ -129,3 +129,22 @@ export function foregroundColor(background: string) {
   );
   return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#101218" : "#ffffff";
 }
+
+// Server snapshots keep this stable while running, and advance it while paused.
+export function scheduledEnd(state: TimerState): number {
+  return state.serverTimeMs + state.remainingMs;
+}
+
+export function formatEndTime(state: TimerState): string {
+  const end = new Date(scheduledEnd(state));
+  const now = new Date(state.serverTimeMs);
+  return new Intl.DateTimeFormat(state.language, {
+    ...(end.toDateString() !== now.toDateString()
+      ? ({ month: "numeric", day: "numeric" } as const)
+      : {}),
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(end);
+}

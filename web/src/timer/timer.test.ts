@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  scheduledEnd,
+  formatEndTime,
   elapsedPercent,
   foregroundColor,
   formatTime,
@@ -83,4 +85,37 @@ test("English localizes timer labels", () => {
     ).label,
     "Idle",
   );
+});
+
+test("scheduled end follows adjustments and stays fixed during countdown and overtime", () => {
+  const state = {
+    serverTimeMs: 100000,
+    remainingMs: 60000,
+    state: "running",
+  } as TimerState;
+  assert.equal(scheduledEnd(state), 160000);
+  assert.equal(
+    scheduledEnd({ ...state, serverTimeMs: 110000, remainingMs: 50000 }),
+    160000,
+  );
+  assert.equal(scheduledEnd({ ...state, remainingMs: 120000 }), 220000);
+  assert.equal(
+    scheduledEnd({ ...state, serverTimeMs: 170000, remainingMs: -10000 }),
+    160000,
+  );
+  assert.equal(
+    scheduledEnd({ ...state, state: "paused", serverTimeMs: 110000 }),
+    170000,
+  );
+  assert.equal(scheduledEnd({ ...state, remainingMs: 0 }), 100000);
+});
+
+test("scheduled end includes the date across midnight", () => {
+  const state = {
+    serverTimeMs: new Date(2026, 9, 10, 23, 59, 30).getTime(),
+    remainingMs: 60000,
+    language: "ja",
+  } as TimerState;
+  assert.match(formatEndTime(state), /10\/11/);
+  assert.match(formatEndTime(state), /00:00:30/);
 });

@@ -61,6 +61,9 @@ const resources = {
       },
       control: {
         timer: "タイマー",
+        endTime: "終了予定",
+        resumeEndTime: "今再開した場合の終了時刻",
+        startEndTime: "今開始した場合の終了時刻",
         duration: "持ち時間 {{time}}",
         resetConfirm: "タイマーを停止し、持ち時間に戻しますか？",
         blackoutOn: "● 暗転中",
@@ -244,6 +247,9 @@ const resources = {
       },
       control: {
         timer: "Timer",
+        endTime: "Scheduled end",
+        resumeEndTime: "End if resumed now",
+        startEndTime: "End if started now",
         duration: "Duration {{time}}",
         resetConfirm: "Stop the timer and restore the full duration?",
         blackoutOn: "● Blackout",
