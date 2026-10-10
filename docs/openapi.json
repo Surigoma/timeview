@@ -1736,6 +1736,270 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "removeDisconnectedDisplay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Timeview-Client",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "browser"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Sec-Fetch-Site",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "same-origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove an unresponsive display record",
+        "description": "Browser-only removal of a record with no response for at least 15 seconds. Returns 409 if it has reconnected. Missing records succeed. Does not change timer state, ETag or preferences. Publishes the updated displays snapshot via SSE. Reports received later recreate the record. Supports standard mutation guards and idempotency."
+      }
+    },
+    "/timer/displays/{id}/name": {
+      "put": {
+        "operationId": "nameDisplayConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{32}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Timeview-Client",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "browser"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Sec-Fetch-Site",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "same-origin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文16KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set or clear the display record name",
+        "description": "Browser-only. Trimmed single-line name, up to 40 characters; empty clears it. Unknown record returns 404. Does not change timer state, ETag or preferences. Names persist through reports for the same ID and are shared via SSE. A record deletion, page reload with a new ID, retention expiry or server restart clears the name.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -2163,6 +2427,11 @@
           },
           "online": {
             "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "Optional operator-assigned name. In-memory lifetime matches the display record."
           }
         }
       },

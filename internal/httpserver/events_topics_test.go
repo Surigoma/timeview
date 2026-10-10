@@ -24,6 +24,40 @@ type streamEvent struct {
 }
 type testStream struct{ scanner *bufio.Scanner }
 
+func TestSSEDisplayNameAndRemoval(t *testing.T) {
+	s := New()
+	var clock atomic.Int64
+	clock.Store(time.Now().UnixMilli())
+	s.now = func() time.Time { return time.UnixMilli(clock.Load()) }
+	id := strings.Repeat("a", 32)
+	displayRequest(s, id, displayBody(s))
+	host := httptest.NewServer(s)
+	t.Cleanup(host.Close)
+	stream := openTestStream(t, host.URL, "?topics=displays")
+	stream.named(t, "displays")
+	if r := requestAs(s, "PUT", "/timer/displays/"+id+"/name", `{"name":"控室"}`, "", "", true); r.Code != 200 {
+		t.Fatal(r.Code, r.Body)
+	}
+	if data := stream.named(t, "displays"); !bytes.Contains(data, []byte("控室")) {
+		t.Fatal(string(data))
+	}
+	clock.Add(displayTimeout.Milliseconds())
+	if r := requestAs(s, "DELETE", "/timer/displays/"+id, "", "", "", true); r.Code != 200 {
+		t.Fatal(r.Code, r.Body)
+	}
+	for {
+		var snapshot struct {
+			Displays []displayReport `json:"displays"`
+		}
+		if err := json.Unmarshal(stream.named(t, "displays"), &snapshot); err != nil {
+			t.Fatal(err)
+		}
+		if len(snapshot.Displays) == 0 {
+			break
+		}
+	}
+}
+
 func openTestStream(t *testing.T, host, topics string) *testStream {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)

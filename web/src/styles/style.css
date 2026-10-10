@@ -858,6 +858,18 @@ footer span {
   padding: 0.4rem 0;
   overflow-wrap: anywhere;
 }
+.display-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.display-row-actions button {
+  min-height: 44px;
+}
+.display-name-form {
+  margin-top: 12px;
+}
 
 .touch-connections {
   margin-top: 24px;

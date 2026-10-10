@@ -2,6 +2,7 @@ import type { TimerState } from "./timer.ts";
 
 export type DisplayReport = {
   id: string;
+  name?: string;
   lastSeenMs: number;
   version: number;
   online: boolean;

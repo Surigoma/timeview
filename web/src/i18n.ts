@@ -4,6 +4,17 @@ const resources = {
   ja: {
     translation: {
       displays: {
+        remove: "一覧から削除",
+        editName: "名前を編集",
+        editNameLabel: "{{name}} の名前を編集",
+        nameLabel: "演台 {{id}} の名前",
+        nameHint:
+          "40文字以内。空欄で名前を解除します。ページの再読込・サーバー再起動・記録削除で名前も解除されます。",
+        saveName: "名前を保存",
+        cancelName: "キャンセル",
+        removeLabel: "{{name}} を一覧から削除",
+        removeConfirm:
+          "応答のない {{name}} を一覧から削除しますか？名前も解除されます。再び応答が届くと一覧に再表示されます。",
         count: "演台接続：{{count}}画面",
         unknown: "演台接続：確認できません",
         noResponse: "応答なし：{{count}}画面",
@@ -233,6 +244,17 @@ const resources = {
   en: {
     translation: {
       displays: {
+        remove: "Remove from list",
+        editName: "Edit name",
+        editNameLabel: "Edit name for {{name}}",
+        nameLabel: "Name for display {{id}}",
+        nameHint:
+          "Up to 40 characters. Leave blank to clear. Reloading the display page, restarting the server or removing the record clears its name.",
+        saveName: "Save name",
+        cancelName: "Cancel",
+        removeLabel: "Remove {{name}} from list",
+        removeConfirm:
+          "Remove unresponsive {{name}} from the list? Its name will be cleared. It will reappear if it reports again.",
         count: "Display connections: {{count}} pages",
         unknown: "Display connections: unavailable",
         noResponse: "No response: {{count}} pages",

@@ -4,10 +4,117 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestRemoveDisconnectedDisplay(t *testing.T) {
+	s := New()
+	now := time.Unix(1700000000, 0)
+	s.now = func() time.Time { return now }
+	id := strings.Repeat("d", 32)
+	displayRequest(s, id, displayBody(s))
+	original := s.model
+	remove := func(key string) *httptest.ResponseRecorder {
+		return requestAs(s, "DELETE", "/timer/displays/"+id, "", key, "", true)
+	}
+	if r := remove("online"); r.Code != 409 {
+		t.Fatal(r.Code, r.Body)
+	}
+	now = now.Add(displayTimeout)
+	client := make(chan struct{}, 1)
+	s.clients[client] = struct{}{}
+	if r := remove("remove"); r.Code != 200 {
+		t.Fatal(r.Code, r.Body)
+	}
+	if len(displaysOf(t, s)) != 0 || !reflect.DeepEqual(original, s.model) {
+		t.Fatal("removal changed timer or retained display")
+	}
+	select {
+	case <-client:
+	default:
+		t.Fatal("subscribers were not notified")
+	}
+	if r := remove("absent"); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	displayRequest(s, id, displayBody(s))
+	if r := remove("remove"); r.Code != 200 {
+		t.Fatal("retry did not replay", r.Code)
+	}
+	if len(displaysOf(t, s)) != 1 {
+		t.Fatal("retry removed a reconnected display")
+	}
+	if r := remove("reconnected"); r.Code != 409 {
+		t.Fatal("reconnected display removed", r.Code)
+	}
+}
+
+func TestRemoveDisplayGuards(t *testing.T) {
+	s := New()
+	id := strings.Repeat("e", 32)
+	for _, tc := range []struct {
+		id, body, etag string
+		browser        bool
+		status         int
+	}{
+		{id, "", "", false, 403},
+		{"bad", "", "", true, 422},
+		{id, `{}`, "", true, 422},
+		{id, strings.Repeat("x", bodyLimit+1), "", true, 413},
+		{id, "", `"wrong"`, true, 412},
+	} {
+		if r := requestAs(s, "DELETE", "/timer/displays/"+tc.id, tc.body, "", tc.etag, tc.browser); r.Code != tc.status {
+			t.Fatal(r.Code, r.Body)
+		}
+	}
+}
+
+func TestDisplayNames(t *testing.T) {
+	s := New()
+	id := strings.Repeat("f", 32)
+	displayRequest(s, id, displayBody(s))
+	original := s.model
+	rename := func(body string, browser bool) *httptest.ResponseRecorder {
+		return requestAs(s, "PUT", "/timer/displays/"+id+"/name", body, "", "", browser)
+	}
+	if r := rename(`{"name":" ステージ左 "}`, true); r.Code != 200 {
+		t.Fatal(r.Code, r.Body)
+	}
+	displayRequest(s, id, displayBody(s))
+	if got := displaysOf(t, s)[0].Name; got != "ステージ左" {
+		t.Fatal(got)
+	}
+	if !reflect.DeepEqual(original, s.model) {
+		t.Fatal("name changed timer model")
+	}
+	for _, body := range []string{`{}`, `{"name":null}`, `{"name":1}`, `{"name":"a\nb"}`, `{"name":"ok","extra":1}`, fmt.Sprintf(`{"name":%q}`, strings.Repeat("あ", 41))} {
+		if r := rename(body, true); r.Code < 400 {
+			t.Fatal(body, r.Code)
+		}
+		if displaysOf(t, s)[0].Name != "ステージ左" {
+			t.Fatal("invalid name committed")
+		}
+	}
+	if r := rename(`{"name":"blocked"}`, false); r.Code != 403 {
+		t.Fatal(r.Code)
+	}
+	if r := rename(fmt.Sprintf(`{"name":%q}`, strings.Repeat("あ", 40)), true); r.Code != 200 {
+		t.Fatal(r.Code)
+	}
+	if r := rename(`{"name":""}`, true); r.Code != 200 || displaysOf(t, s)[0].Name != "" {
+		t.Fatal(r.Code)
+	}
+	delete(s.displays, id)
+	if r := rename(`{"name":"missing"}`, true); r.Code != 404 {
+		t.Fatal(r.Code)
+	}
+	if r := requestAs(s, "PUT", "/timer/displays/bad/name", `{"name":"x"}`, "", "", true); r.Code != 422 {
+		t.Fatal(r.Code)
+	}
+}
 
 func displayRequest(s *Server, id, body string) *httptest.ResponseRecorder {
 	return requestAs(s, "PUT", "/timer/displays/"+id, body, "", "", true)

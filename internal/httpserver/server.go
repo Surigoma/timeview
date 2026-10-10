@@ -78,6 +78,8 @@ func (s *Server) Register(api *gin.RouterGroup) {
 	api.GET("/timer/events", s.events)
 	api.GET("/timer/displays", s.getDisplays)
 	api.PUT("/timer/displays/:id", s.reportDisplay)
+	api.DELETE("/timer/displays/:id", s.mutation(false, s.removeDisplay))
+	api.PUT("/timer/displays/:id/name", s.mutation(false, s.nameDisplay))
 	api.POST("/timer/config/validate", s.mutation(false, validateConfig))
 	api.GET("/timer/config", s.getConfig)
 	api.PATCH("/timer/config", s.mutation(true, importConfig))
