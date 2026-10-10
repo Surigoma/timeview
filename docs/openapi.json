@@ -1040,7 +1040,24 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "topics",
+            "in": "query",
+            "description": "追加配信対象。省略時はstateのみ。通常操作画面はdisplays,logs、タッチ操作画面はdisplaysを指定する。未知の対象は422。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "displays",
+                "logs",
+                "displays,logs",
+                "logs,displays"
+              ]
+            }
+          }
+        ],
+        "description": "1本の接続でstateを初回・1秒ごと・変更時に送る。購読対象のdisplaysとlogsは初回・再接続・更新時に最新一覧を送る。logsは最新500件で保存成功後に更新。displaysの応答なし遷移と期限切れも配信。各追加イベントはinstanceIdを含む。ログ読込失敗時はentries:nullと日本語errorを配信して再試行。演台画面は追加購読しない。"
       }
     },
     "/timer/bindings": {
@@ -2146,6 +2163,51 @@
           },
           "online": {
             "type": "boolean"
+          }
+        }
+      },
+      "DisplaySnapshot": {
+        "type": "object",
+        "required": [
+          "instanceId",
+          "displays"
+        ],
+        "properties": {
+          "instanceId": {
+            "type": "string"
+          },
+          "displays": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/DisplayReport"
+            }
+          }
+        }
+      },
+      "LogSnapshot": {
+        "type": "object",
+        "required": [
+          "instanceId",
+          "entries"
+        ],
+        "properties": {
+          "instanceId": {
+            "type": "string"
+          },
+          "entries": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            }
+          },
+          "error": {
+            "type": "string",
+            "description": "読込失敗時の日本語メッセージ"
           }
         }
       }

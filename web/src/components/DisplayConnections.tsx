@@ -1,62 +1,12 @@
-import { useEffect, useState } from "react";
-import { t } from "../../i18n";
-import type { TimerConnection } from "../../timer/useTimer";
+import { t } from "../i18n";
+import type { TimerConnection } from "../timer/useTimer";
 
-type Display = {
-  id: string;
-  lastSeenMs: number;
-  version: number;
-  online: boolean;
-};
 export function DisplayConnections({ timer }: { timer: TimerConnection }) {
-  const [reports, setReports] = useState<{
-    instanceId: string;
-    displays: Display[];
-  } | null>(null);
-  const [available, setAvailable] = useState(false);
-  const instance = timer.state?.instanceId;
-  useEffect(() => {
-    let stopped = false;
-    let pending = false;
-    const controller = new AbortController();
-    const load = async () => {
-      if (pending) return;
-      pending = true;
-      try {
-        const response = await fetch("/api/v1/timer/displays", {
-          signal: AbortSignal.any([
-            controller.signal,
-            AbortSignal.timeout(4000),
-          ]),
-        });
-        if (!response.ok) throw new Error();
-        const next = (await response.json()) as {
-          instanceId: string;
-          displays: Display[];
-        };
-        if (!stopped) {
-          setReports(next);
-          setAvailable(true);
-        }
-      } catch {
-        if (!stopped) setAvailable(false);
-      } finally {
-        pending = false;
-      }
-    };
-    void load();
-    const interval = setInterval(() => void load(), 3000);
-    return () => {
-      stopped = true;
-      controller.abort();
-      clearInterval(interval);
-    };
-  }, [instance]);
+  const reports = timer.displays;
   const known =
     timer.connected &&
-    available &&
     reports !== null &&
-    reports.instanceId === instance;
+    reports.instanceId === timer.state?.instanceId;
   return (
     <details className="display-connections">
       <summary>

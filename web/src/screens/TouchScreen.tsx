@@ -1,3 +1,5 @@
+import { DisplayConnections } from "../components/DisplayConnections";
+import { EndTime } from "../components/EndTime";
 import { t } from "../i18n";
 import { formatTime, phase } from "../timer/timer";
 import type { TimerConnection } from "../timer/useTimer";
@@ -42,6 +44,7 @@ export function TouchScreen({
             {formatTime(timer.remaining)}
           </div>
           <p>{phase(state, timer.remaining).label}</p>
+          <EndTime timer={timer} />
         </div>
         <fieldset disabled={disabled} className="touch-transport">
           <button
@@ -91,6 +94,12 @@ export function TouchScreen({
             ↺ {t("actions.reset")}
           </button>
         </fieldset>
+      </section>
+      <section
+        className="touch-connections"
+        aria-label={t("touch.displayConnections")}
+      >
+        <DisplayConnections timer={timer} />
       </section>
       <section className="touch-actions" aria-label={t("touch.stageControls")}>
         <fieldset disabled={disabled} className="touch-blackout">

@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { operationError, setLanguage, t } from "../i18n.ts";
 import type { TimerState } from "./timer.ts";
 
-export function useTimer() {
+import { belongsToInstance, eventURL } from "./events.ts";
+import type { DisplaySnapshot, LogSnapshot, StreamView } from "./events.ts";
+
+export function useTimer(view: StreamView = "control") {
+  const [displays, setDisplays] = useState<DisplaySnapshot | null>(null);
+  const [logs, setLogs] = useState<LogSnapshot | null>(null);
   const [state, setState] = useState<TimerState | null>(null);
   const current = useRef<TimerState | null>(null);
   const [remaining, setRemaining] = useState(0);
@@ -29,6 +34,8 @@ export function useTimer() {
     setLanguage(next.language);
     if (prev && prev.instanceId !== next.instanceId) {
       generation.current++;
+      setDisplays(null);
+      setLogs(null);
       setError("");
       setNotice(t("notices.restarted"));
     }
@@ -60,9 +67,32 @@ export function useTimer() {
       source: EventSource | undefined,
       retry = 1000;
     let reconnect: ReturnType<typeof setTimeout>;
+    const disconnect = () => {
+      source?.close();
+      source = undefined;
+      setConnected(false);
+      setDisplays(null);
+      setLogs(null);
+      if (!closed) {
+        clearTimeout(reconnect);
+        reconnect = setTimeout(open, retry);
+        retry = Math.min(10000, retry * 2);
+      }
+    };
     const open = () => {
       if (closed) return;
-      source = new EventSource("/api/v1/timer/events");
+      received.current = performance.now();
+      source = new EventSource(eventURL(view));
+      source.addEventListener("displays", (e) => {
+        const snapshot = JSON.parse(
+          (e as MessageEvent).data,
+        ) as DisplaySnapshot;
+        if (belongsToInstance(snapshot, current.current)) setDisplays(snapshot);
+      });
+      source.addEventListener("logs", (e) => {
+        const snapshot = JSON.parse((e as MessageEvent).data) as LogSnapshot;
+        if (belongsToInstance(snapshot, current.current)) setLogs(snapshot);
+      });
       source.addEventListener("state", (e) => {
         const next = JSON.parse((e as MessageEvent).data) as TimerState;
         received.current = performance.now();
@@ -70,20 +100,10 @@ export function useTimer() {
         retry = 1000;
         accept(next);
       });
-      source.onerror = () => {
-        source?.close();
-        setConnected(false);
-        if (!closed) {
-          reconnect = setTimeout(open, retry);
-          retry = Math.min(10000, retry * 2);
-        }
-      };
+      source.onerror = disconnect;
     };
     open();
     void refresh().catch(() => {});
-    const probe = setInterval(() => {
-      void refresh().catch(() => {});
-    }, 10000);
     const clock = setInterval(() => {
       const s = current.current;
       if (s)
@@ -93,16 +113,15 @@ export function useTimer() {
               ? performance.now() - baseline.current.at
               : 0),
         );
-      if (performance.now() - received.current > 5000) setConnected(false);
+      if (source && performance.now() - received.current > 5000) disconnect();
     }, 100);
     return () => {
       closed = true;
       source?.close();
       clearTimeout(reconnect);
-      clearInterval(probe);
       clearInterval(clock);
     };
-  }, [accept, refresh]);
+  }, [accept, refresh, view]);
 
   const send = useCallback(
     async (path: string, body?: unknown, method = "POST", etag?: string) => {
@@ -154,7 +173,18 @@ export function useTimer() {
     },
     [accept, connected, refresh],
   );
-  return { state, remaining, connected, notice, error, setError, busy, send };
+  return {
+    state,
+    remaining,
+    connected,
+    notice,
+    error,
+    setError,
+    busy,
+    send,
+    displays,
+    logs,
+  };
 }
 
 export type TimerConnection = ReturnType<typeof useTimer>;

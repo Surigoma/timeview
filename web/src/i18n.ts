@@ -192,8 +192,9 @@ const resources = {
         fullscreen: "全画面表示",
       },
       logs: {
+        live: "自動更新",
+        waiting: "接続後に最新の操作ログを受信します",
         title: "操作ログ",
-        refresh: "更新",
         hint: "最新500件を新しい順に表示します。カンペ本文は記録しません。",
         empty: "記録はまだありません。",
         time: "日時",
@@ -207,6 +208,7 @@ const resources = {
         failure: "失敗",
       },
       touch: {
+        displayConnections: "演台の接続状況",
         connecting: "接続しています…",
         timerControls: "タイマー操作",
         stageControls: "演台操作",
@@ -421,8 +423,9 @@ const resources = {
         fullscreen: "Fullscreen",
       },
       logs: {
+        live: "Live updates",
+        waiting: "Latest operation logs will arrive when connected",
         title: "Operation log",
-        refresh: "Refresh",
         hint: "Shows the latest 500 entries, newest first. Message text is never recorded.",
         empty: "No entries yet.",
         time: "Time",
@@ -436,6 +439,7 @@ const resources = {
         failure: "Failure",
       },
       touch: {
+        displayConnections: "Display connections",
         connecting: "Connecting…",
         timerControls: "Timer controls",
         stageControls: "Stage controls",

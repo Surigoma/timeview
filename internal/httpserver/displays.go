@@ -27,18 +27,23 @@ func (s *Server) pruneDisplays(now time.Time) {
 	}
 }
 
-func (s *Server) getDisplays(c *gin.Context) {
-	s.mu.Lock()
-	now := s.now()
+// Caller holds s.mu. A snapshot includes timeout transitions without a browser poll.
+func (s *Server) displaySnapshot(now time.Time) []displayReport {
 	s.pruneDisplays(now)
 	displays := make([]displayReport, 0, len(s.displays))
 	for _, display := range s.displays {
 		display.Online = now.UnixMilli()-display.LastSeen < displayTimeout.Milliseconds()
 		displays = append(displays, display)
 	}
+	sort.Slice(displays, func(i, j int) bool { return displays[i].ID < displays[j].ID })
+	return displays
+}
+
+func (s *Server) getDisplays(c *gin.Context) {
+	s.mu.Lock()
+	displays := s.displaySnapshot(s.now())
 	instance := s.model.InstanceID
 	s.mu.Unlock()
-	sort.Slice(displays, func(i, j int) bool { return displays[i].ID < displays[j].ID })
 	c.JSON(http.StatusOK, gin.H{"instanceId": instance, "displays": displays})
 }
 
@@ -106,5 +111,6 @@ func (s *Server) reportDisplay(c *gin.Context) {
 		version = previous.Version
 	}
 	s.displays[id] = displayReport{ID: id, LastSeen: now.UnixMilli(), Version: version}
+	s.notifyClients()
 	c.Status(http.StatusNoContent)
 }

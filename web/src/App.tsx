@@ -10,9 +10,9 @@ import { useDisplayReport } from "./timer/useDisplayReport";
 import { useTimer } from "./timer/useTimer";
 
 export default function App() {
-  const timer = useTimer();
   const display = location.pathname === "/display";
   const touch = location.pathname === "/touch";
+  const timer = useTimer(display ? "display" : touch ? "touch" : "control");
   useDisplayReport(timer, display);
   const [tab, setTab] = useState(
     location.pathname === "/settings"
@@ -22,7 +22,6 @@ export default function App() {
         : "control",
   );
   const remote = useRemoteControls(timer, display);
-  const language = timer.state?.language ?? "ja";
 
   if (display) {
     return timer.state ? (
@@ -166,7 +165,7 @@ export default function App() {
             connectMidi={remote.connectMidi}
           />
         )}
-        {tab === "logs" && <LogsScreen language={language} />}
+        {tab === "logs" && <LogsScreen timer={timer} />}
       </main>
       <footer>
         TIMEVIEW <span>{t("app.footer")}</span>

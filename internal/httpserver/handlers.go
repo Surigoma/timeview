@@ -51,18 +51,28 @@ func (s *Server) getBindings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"bindings": bindings})
 }
 
-func (s *Server) getLogs(c *gin.Context) {
-	if s.audit == nil {
-		c.JSON(http.StatusOK, gin.H{"entries": []auditlog.Entry{}})
-		return
+func readLogs(log *auditlog.Log) ([]auditlog.Entry, error) {
+	if log == nil {
+		return []auditlog.Entry{}, nil
 	}
-	entries, err := s.audit.Read(500)
+	entries, err := log.Read(500)
 	if err != nil {
-		writeError(c, err)
-		return
+		return nil, err
 	}
 	for left, right := 0, len(entries)-1; left < right; left, right = left+1, right-1 {
 		entries[left], entries[right] = entries[right], entries[left]
+	}
+	return entries, nil
+}
+
+func (s *Server) getLogs(c *gin.Context) {
+	s.mu.Lock()
+	log := s.audit
+	s.mu.Unlock()
+	entries, err := readLogs(log)
+	if err != nil {
+		writeError(c, err)
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"entries": entries})
 }
@@ -99,7 +109,10 @@ func (s *Server) mutation(persist bool, apply mutationFunc) gin.HandlerFunc {
 }
 
 func (s *Server) recordOperation(c *gin.Context, data []byte, operationErr error) {
-	if s.audit == nil {
+	s.mu.Lock()
+	log := s.audit
+	s.mu.Unlock()
+	if log == nil {
 		return
 	}
 	entry := auditlog.Entry{
@@ -117,9 +130,14 @@ func (s *Server) recordOperation(c *gin.Context, data []byte, operationErr error
 			entry.ErrorCode = "INTERNAL_ERROR"
 		}
 	}
-	if err := s.audit.Write(entry); err != nil {
+	if err := log.Write(entry); err != nil {
 		slog.Error("操作ログを書き込めません", "error", err)
+		return
 	}
+	s.mu.Lock()
+	s.logRevision++
+	s.notifyClients()
+	s.mu.Unlock()
 }
 
 func auditAction(method, path string, data []byte) string {
@@ -241,13 +259,9 @@ func (s *Server) mutate(c *gin.Context, persist bool, apply mutationFunc, data [
 		s.receipts[key] = receipt{hash, body, state.ETag(), now.Add(10 * time.Minute)}
 	}
 	if changed {
-		for client := range s.clients {
-			select {
-			case client <- struct{}{}:
-			default:
-			}
-		}
+		s.notifyClients()
 	}
+
 	return body, state.ETag(), nil
 }
 

@@ -16,21 +16,31 @@ import (
 var configureGin sync.Once
 
 type Server struct {
-	mu         sync.Mutex
-	model      timer.Model
-	configPath string
-	receipts   map[string]receipt
-	clients    map[chan struct{}]struct{}
-	displays   map[string]displayReport
-	limits     map[string]*clientLimit
-	now        func() time.Time
-	handler    http.Handler
-	handlerOne sync.Once
-	audit      *auditlog.Log
-	logLevel   *slog.LevelVar
+	mu               sync.Mutex
+	model            timer.Model
+	configPath       string
+	receipts         map[string]receipt
+	clients          map[chan struct{}]struct{}
+	displays         map[string]displayReport
+	limits           map[string]*clientLimit
+	now              func() time.Time
+	handler          http.Handler
+	handlerOne       sync.Once
+	audit            *auditlog.Log
+	logRevision      uint64
+	logReadMu        sync.Mutex
+	logCacheRevision uint64
+	logCache         []auditlog.Entry
+	logLevel         *slog.LevelVar
 }
 
-func (s *Server) SetAuditLog(log *auditlog.Log) { s.audit = log }
+func (s *Server) SetAuditLog(log *auditlog.Log) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.audit = log
+	s.logRevision++
+	s.notifyClients()
+}
 
 func (s *Server) SetLogLevel(level *slog.LevelVar) {
 	s.mu.Lock()

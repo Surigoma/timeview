@@ -1,5 +1,6 @@
+import { EndTime } from "../../components/EndTime";
 import { t } from "../../i18n";
-import { formatEndTime, formatTime, phase } from "../../timer/timer";
+import { formatTime, phase } from "../../timer/timer";
 import type { TimerConnection } from "../../timer/useTimer";
 
 export function TimerPanel({ timer }: { timer: TimerConnection }) {
@@ -16,16 +17,7 @@ export function TimerPanel({ timer }: { timer: TimerConnection }) {
       >
         {formatTime(timer.remaining)}
       </div>
-      <p className="hint">
-        {t(
-          state.state === "running"
-            ? "control.endTime"
-            : state.state === "paused"
-              ? "control.resumeEndTime"
-              : "control.startEndTime",
-        )}{" "}
-        {timer.connected ? formatEndTime(state) : "—"}
-      </p>
+      <EndTime timer={timer} />
       <div className="timer-meta">
         <span>
           {t("control.duration", {

@@ -1,52 +1,33 @@
-import { useCallback, useEffect, useState } from "react";
 import { t } from "../i18n";
 
-type AuditEntry = {
-  time: string;
-  type: "process" | "operation";
-  action: string;
-  result: "success" | "failure";
-  client?: string;
-  statusCode?: number;
-  errorCode?: string;
-};
+import type { TimerConnection } from "../timer/useTimer";
 
-export function LogsScreen({ language }: { language: "ja" | "en" }) {
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/v1/logs", {
-        signal: AbortSignal.timeout(4000),
-      });
-      if (!response.ok) throw new Error();
-      const data = (await response.json()) as { entries: AuditEntry[] };
-      setEntries(data.entries);
-    } catch {
-      setError("操作ログを取得できませんでした");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  useEffect(() => void load(), [load]);
+export function LogsScreen({ timer }: { timer: TimerConnection }) {
+  const snapshot = timer.logs;
+  const entries = snapshot?.entries ?? [];
+  const language = timer.state?.language ?? "ja";
+  const ready = timer.connected && snapshot !== null;
+  const error = snapshot?.error;
   return (
     <section className="panel logs-panel">
       <div className="panel-title">
         <h2>{t("logs.title")}</h2>
-        <button
-          className="small"
-          disabled={loading}
-          onClick={() => void load()}
-        >
-          {t("logs.refresh")}
-        </button>
+        <span className="badge">
+          {timer.connected ? t("logs.live") : t("common.connecting")}
+        </span>
       </div>
       <p className="hint">{t("logs.hint")}</p>
-      {error && <p className="warning">{error}</p>}
-      {!error && !loading && entries.length === 0 && (
+      {!ready && (
+        <p role="status" className="hint">
+          {t("logs.waiting")}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="warning">
+          {error}
+        </p>
+      )}
+      {ready && !error && entries.length === 0 && (
         <p className="hint">{t("logs.empty")}</p>
       )}
       {entries.length > 0 && (

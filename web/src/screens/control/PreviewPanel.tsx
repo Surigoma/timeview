@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DisplayConnections } from "./DisplayConnections";
+import { DisplayConnections } from "../../components/DisplayConnections";
 import { Stage } from "../../components/Stage";
 import { t } from "../../i18n";
 import type { TimerConnection } from "../../timer/useTimer";
