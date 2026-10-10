@@ -1,5 +1,5 @@
 import type { Binding } from "../../input/bindings";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { TimerState } from "../../timer/timer";
 import { t } from "../../i18n";
 import type { TimerConnection } from "../../timer/useTimer";
@@ -32,6 +32,7 @@ export function SettingsScreen({
 }) {
   const [editing, setEditing] = useState<TimerState | null>(null);
   const [draft, setDraft] = useState<string[] | null>(null);
+  const inputSection = useRef<HTMLDetailsElement>(null);
   return (
     <div className="settings-sections">
       <details className="settings-section" open>
@@ -61,7 +62,16 @@ export function SettingsScreen({
           setDraft={setDraft}
         />
       </details>
-      <details className="settings-section">
+      <details
+        className="settings-section"
+        ref={inputSection}
+        onToggle={(event) => {
+          if (!event.currentTarget.open) {
+            setRecord(null);
+            setMidiRecord(null);
+          }
+        }}
+      >
         <summary>{t("settings.inputIntegration")}</summary>
         <div className="settings-grid">
           <BindingSettings
@@ -72,7 +82,11 @@ export function SettingsScreen({
             setBindings={setBindings}
             midiRecord={midiRecord}
             setMidiRecord={setMidiRecord}
-            connectMidi={connectMidi}
+            connectMidi={async () => {
+              const ok = await connectMidi();
+              const section = inputSection.current;
+              return ok && !!section?.open && !section.closest("[hidden]");
+            }}
           />
           <IntegrationPanel timer={timer} />
         </div>

@@ -56,6 +56,7 @@ export function BindingSettings({
             <div className="binding-actions">
               <button
                 className="small"
+                aria-label={`${bindingLabel(binding.action)}: ${record === binding.action ? t("settings.enterKey") : keyLabel(binding)}`}
                 onClick={() => {
                   setMidiRecord(null);
                   setRecord(binding.action);
@@ -67,6 +68,7 @@ export function BindingSettings({
               </button>
               <button
                 className="small"
+                aria-label={`${bindingLabel(binding.action)}: ${midiRecord === binding.action ? t("settings.enterMidi") : midiLabel(binding.midi)}`}
                 onClick={() => {
                   void connectMidi().then((ok) => {
                     if (ok) setMidiRecord(binding.action);
@@ -80,7 +82,7 @@ export function BindingSettings({
               {binding.midi && (
                 <button
                   className="small"
-                  aria-label={t("settings.clearMidi")}
+                  aria-label={`${bindingLabel(binding.action)}: ${t("settings.clearMidi")}`}
                   onClick={() => {
                     const next = bindings.map((item) =>
                       item.action === binding.action
