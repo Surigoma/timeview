@@ -831,3 +831,17 @@ footer span {
     grid-template-columns: 1fr;
   }
 }
+
+.backup-panel {
+  grid-column: 1 / -1;
+}
+.backup-panel pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 16rem;
+  overflow: auto;
+}
+.backup-panel summary {
+  cursor: pointer;
+  padding: 0.5rem 0;
+}

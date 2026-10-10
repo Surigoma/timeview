@@ -3,7 +3,7 @@
   "info": {
     "title": "TimeView API",
     "version": "0.3.0",
-    "description": "分離LAN向け認証なしHTTP API。タイマー実行状態と再送記録はメモリ、設定はJSONファイルへ保存。POST/PUT/PATCHはapplication/json、本文16KiB以内。変更APIはIPごと10件/秒・バースト20、GETはIPごと30件/秒。browserOnly有効時はGET/SSE以外にX-Timeview-Client: browserとSec-Fetch-Site: same-originが必要。"
+    "description": "分離LAN向け認証なしHTTP API。タイマー実行状態と再送記録はメモリ、設定はJSONファイルへ保存。POST/PUT/PATCHはapplication/json、本文16KiB以内（設定バックアップの読込・検証は64KiB以内）。変更APIはIPごと10件/秒・バースト20、GETはIPごと30件/秒。browserOnly有効時はGET/SSE以外にX-Timeview-Client: browserとSec-Fetch-Site: same-originが必要。"
   },
   "servers": [
     {
@@ -1260,6 +1260,283 @@
           }
         }
       }
+    },
+    "/timer/config": {
+      "get": {
+        "summary": "設定バックアップを取得",
+        "responses": {
+          "200": {
+            "description": "設定JSON（実行状態を除く）",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsBackup"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文64KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "exportSettings"
+      },
+      "patch": {
+        "summary": "待機中に設定バックアップを一括適用",
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文64KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "importSettings",
+        "description": "本文64KiB以内。待機中のみ。検証は設定とversionを変更しない。適用は全設定の検証と永続化に成功した場合のみ一括実行。",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsBackup"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/timer/config/validate": {
+      "post": {
+        "summary": "設定バックアップを検証",
+        "responses": {
+          "200": {
+            "description": "最新状態。同じキーの再送は最初の応答。",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "引用符付きinstanceId:version"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 JSON/Content-Type不正、403 ブラウザ操作限定、404 未知API、409 状態/キー/起動ID競合、412 ETag不一致、413 本文64KiB超過、422 値不正、428 必須ヘッダー欠落、429 レート/容量制限、500 内部エラー",
+            "headers": {
+              "Retry-After": {
+                "description": "429時の待機秒数",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "validateSettings",
+        "description": "本文64KiB以内。待機中のみ。検証は設定とversionを変更しない。適用は全設定の検証と永続化に成功した場合のみ一括実行。",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "要求ごとのUUID等。adjustでは必須。全クライアント共通の名前空間で同一起動中10分間保持。同じキー・メソッド・パス・本文バイト列で再送。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "引用符付きinstanceId:version。不一致412。PATCHでは必須。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Timeview-Instance",
+            "in": "header",
+            "description": "取得したinstanceId。再起動による不一致時は409。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsBackup"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1536,6 +1813,128 @@
                 "maximum": 127,
                 "description": "ノート番号またはコントローラー番号"
               }
+            }
+          }
+        }
+      },
+      "SettingsBackup": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "timer",
+          "keypadBindings"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1
+          },
+          "timer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "durationSeconds",
+              "warning1Seconds",
+              "warning2Seconds",
+              "displayMode",
+              "flash",
+              "browserOnly",
+              "colors"
+            ],
+            "properties": {
+              "durationSeconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400
+              },
+              "warning1Seconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "warning2Seconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "displayMode": {
+                "type": "string",
+                "enum": [
+                  "timer",
+                  "timer_and_message",
+                  "message"
+                ]
+              },
+              "language": {
+                "type": "string",
+                "enum": [
+                  "ja",
+                  "en"
+                ],
+                "default": "ja"
+              },
+              "logLevel": {
+                "type": "string",
+                "enum": [
+                  "debug",
+                  "info",
+                  "warn",
+                  "error"
+                ],
+                "default": "info"
+              },
+              "flash": {
+                "type": "boolean",
+                "default": false
+              },
+              "browserOnly": {
+                "type": "boolean",
+                "default": false,
+                "description": "変更操作を同一オリジンのTimeViewブラウザ画面に限定する運用ガード。認証ではない"
+              },
+              "colors": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "normal",
+                  "warning1",
+                  "warning2",
+                  "overtime"
+                ],
+                "properties": {
+                  "normal": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "warning1": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "warning2": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "overtime": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  }
+                }
+              }
+            }
+          },
+          "presets": {
+            "type": "array",
+            "maxItems": 9,
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "keypadBindings": {
+            "type": "array",
+            "minItems": 19,
+            "maxItems": 19,
+            "items": {
+              "$ref": "#/components/schemas/KeyBinding"
             }
           }
         }

@@ -3,6 +3,7 @@ import type { TimerConnection } from "../../timer/useTimer";
 import { BindingSettings } from "./BindingSettings";
 import { IntegrationPanel } from "./IntegrationPanel";
 import { PresetEditor } from "./PresetEditor";
+import { BackupPanel } from "./BackupPanel";
 import { TimerSettings } from "./TimerSettings";
 
 export function SettingsScreen({
@@ -41,6 +42,7 @@ export function SettingsScreen({
         connectMidi={connectMidi}
       />
       <IntegrationPanel timer={timer} />
+      <BackupPanel timer={timer} />
     </div>
   );
 }

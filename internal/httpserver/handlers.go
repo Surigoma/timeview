@@ -75,9 +75,13 @@ func (s *Server) mutation(persist bool, apply mutationFunc) gin.HandlerFunc {
 			writeError(c, err)
 			return
 		}
-		data, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, bodyLimit))
+		limit := int64(bodyLimit)
+		if c.Request.URL.Path == "/api/v1/timer/config" || c.Request.URL.Path == "/api/v1/timer/config/validate" {
+			limit = 64 << 10
+		}
+		data, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, limit))
 		if err != nil {
-			apiErr := &apiError{Status: 413, Code: "BODY_TOO_LARGE", Message: "本文は16KiB以内にしてください"}
+			apiErr := &apiError{Status: 413, Code: "BODY_TOO_LARGE", Message: fmt.Sprintf("本文は%dKiB以内にしてください", limit/1024)}
 			s.recordOperation(c, nil, apiErr)
 			writeError(c, apiErr)
 			return
@@ -245,4 +249,13 @@ func (s *Server) mutate(c *gin.Context, persist bool, apply mutationFunc, data [
 		}
 	}
 	return body, state.ETag(), nil
+}
+
+func (s *Server) getConfig(c *gin.Context) {
+	s.mu.Lock()
+	config := timer.ExportConfig(s.model)
+	etag := s.model.State.ETag()
+	s.mu.Unlock()
+	c.Header("ETag", etag)
+	c.JSON(http.StatusOK, config)
 }

@@ -3,6 +3,35 @@ import i18next from "i18next";
 const resources = {
   ja: {
     translation: {
+      backup: {
+        title: "設定のバックアップ",
+        hint: "持ち時間・警告・表示・定型文・Keypad/MIDI割り当てを保存・復元します。計測状態・暗転・送信中のカンペは含みません。",
+        export: "設定を書き出す",
+        import: "設定ファイルを選ぶ",
+        idleOnly: "読込は待機中のみ可能です。内容を確認してから適用します。",
+        loading: "設定を確認しています…",
+        exported: "設定ファイルを書き出しました",
+        imported: "設定を読み込みました",
+        review: "変更内容の確認",
+        before: "現在",
+        after: "読込後",
+        noChanges: "設定に変更はありません",
+        apply: "この内容を適用する",
+        cancel: "キャンセル",
+        fields: {
+          durationSeconds: "持ち時間（秒）",
+          warning1Seconds: "第1警告（秒）",
+          warning2Seconds: "第2警告（秒）",
+          displayMode: "表示モード",
+          language: "言語",
+          logLevel: "ログレベル",
+          flash: "点滅",
+          browserOnly: "ブラウザ操作限定",
+          colors: "表示色",
+          presets: "カンペ定型文",
+          keypadBindings: "Keypad/MIDI割り当て",
+        },
+      },
       common: {
         connected: "接続中",
         connecting: "接続待ち",
@@ -189,6 +218,36 @@ const resources = {
   },
   en: {
     translation: {
+      backup: {
+        title: "Settings backup",
+        hint: "Save or restore duration, warnings, display, messages and Keypad/MIDI bindings. Live timer, blackout and current message are excluded.",
+        export: "Export settings",
+        import: "Choose settings file",
+        idleOnly:
+          "Import is available while idle. Review changes before applying.",
+        loading: "Checking settings…",
+        exported: "Settings exported",
+        imported: "Settings imported",
+        review: "Review changes",
+        before: "Current",
+        after: "After import",
+        noChanges: "No settings changes",
+        apply: "Apply these settings",
+        cancel: "Cancel",
+        fields: {
+          durationSeconds: "Duration (seconds)",
+          warning1Seconds: "First warning (seconds)",
+          warning2Seconds: "Second warning (seconds)",
+          displayMode: "Display mode",
+          language: "Language",
+          logLevel: "Log level",
+          flash: "Flash",
+          browserOnly: "Browser only",
+          colors: "Colors",
+          presets: "Message presets",
+          keypadBindings: "Keypad/MIDI bindings",
+        },
+      },
       common: {
         connected: "Connected",
         connecting: "Connecting",

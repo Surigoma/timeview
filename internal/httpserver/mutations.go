@@ -113,3 +113,17 @@ func updateBindings(next *timer.Model, _ *gin.Context, data []byte, _ time.Time)
 	next.SetBindings(*payload.Bindings)
 	return nil
 }
+
+func importConfig(next *timer.Model, _ *gin.Context, data []byte, now time.Time) error {
+	// Apply the same JSON/null checks used by all other mutation endpoints.
+	var payload map[string]any
+	if err := decode(data, &payload); err != nil {
+		return err
+	}
+	return next.ImportConfig(data, now)
+}
+
+func validateConfig(next *timer.Model, c *gin.Context, data []byte, now time.Time) error {
+	copy := *next
+	return importConfig(&copy, c, data, now)
+}

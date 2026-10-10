@@ -150,8 +150,19 @@ func Load(path string, now time.Time) (Model, error) {
 	if err != nil {
 		return Model{}, fmt.Errorf("設定ファイルを読み込めません: %w", err)
 	}
+	return ParseConfig(data, now)
+}
+
+// ParseConfig validates the portable preferences format without accessing disk.
+func ParseConfig(data []byte, now time.Time) (Model, error) {
+	m := New(now)
 	if !utf8.Valid(data) {
 		return Model{}, fmt.Errorf("設定ファイルはUTF-8で保存してください")
+	}
+	// Reject fractional integers and wrong JSON types before mapstructure conversion.
+	var typed fileConfig
+	if err := json.Unmarshal(data, &typed); err != nil {
+		return Model{}, fmt.Errorf("設定ファイルのJSONが不正です: %w", err)
 	}
 	configStore := koanf.New(".")
 	if err := configStore.Load(rawbytes.Provider(data), kjson.Parser()); err != nil {
@@ -238,5 +249,29 @@ func Save(path string, m Model) error {
 	if err := os.Rename(temporaryPath, path); err != nil {
 		return fmt.Errorf("設定ファイルを置き換えられません: %w", err)
 	}
+	return nil
+}
+
+// ExportConfig contains preferences only, never live timer or display state.
+func ExportConfig(m Model) any { return configFromModel(m) }
+
+func (m *Model) ImportConfig(data []byte, now time.Time) error {
+	if m.Status != "idle" {
+		return Conflict("設定の読込前にリセットしてください")
+	}
+	loaded, err := ParseConfig(data, now)
+	if err != nil {
+		return Invalid(err.Error())
+	}
+	config := configFromModel(loaded)
+	if err := m.Configure(Settings{
+		Duration: &config.Timer.Duration, Warning1: &config.Timer.Warning1, Warning2: &config.Timer.Warning2,
+		DisplayMode: &loaded.DisplayMode, Language: &loaded.Language, LogLevel: &loaded.LogLevel,
+		Flash: &loaded.Flash, BrowserOnly: &loaded.BrowserOnly, Colors: &loaded.Colors,
+	}); err != nil {
+		return err
+	}
+	m.SetPresets(loaded.Presets())
+	m.SetBindings(loaded.Bindings())
 	return nil
 }
