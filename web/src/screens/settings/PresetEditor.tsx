@@ -1,23 +1,21 @@
-import { useState } from "react";
 import { t } from "../../i18n";
 import type { TimerConnection } from "../../timer/useTimer";
 
 export function PresetEditor({
   timer,
   presets,
+  draft,
+  setDraft,
 }: {
   timer: TimerConnection;
   presets: string[];
+  draft: string[] | null;
+  setDraft: (draft: string[] | null) => void;
 }) {
-  const [draft, setDraft] = useState<string[] | null>(null);
   const values =
     draft ?? Array.from({ length: 9 }, (_, index) => presets[index] ?? "");
   return (
     <section className="panel">
-      <div className="panel-title">
-        <h2>{t("settings.presets")}</h2>
-        <span className="badge">{t("settings.presetLimit")}</span>
-      </div>
       <p className="hint">{t("settings.presetHint")}</p>
       <div className="preset-editor">
         {values.map((text, index) => (

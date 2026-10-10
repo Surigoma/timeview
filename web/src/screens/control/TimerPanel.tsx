@@ -1,6 +1,6 @@
 import { EndTime } from "../../components/EndTime";
 import { t } from "../../i18n";
-import { formatTime, phase } from "../../timer/timer";
+import { formatTime, operatorTimeColor, phase } from "../../timer/timer";
 import type { TimerConnection } from "../../timer/useTimer";
 
 export function TimerPanel({ timer }: { timer: TimerConnection }) {
@@ -13,7 +13,7 @@ export function TimerPanel({ timer }: { timer: TimerConnection }) {
       </div>
       <div
         className="operator-time"
-        style={{ color: phase(state, timer.remaining).color }}
+        style={{ color: operatorTimeColor(state, timer.remaining) }}
       >
         {formatTime(timer.remaining)}
       </div>

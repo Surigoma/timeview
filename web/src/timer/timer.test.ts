@@ -7,6 +7,7 @@ import {
   foregroundColor,
   formatTime,
   phase,
+  operatorTimeColor,
   warningGauge,
 } from "./timer.ts";
 import type { TimerState } from "./timer.ts";
@@ -32,6 +33,29 @@ test("warning precedence and disabled zero thresholds", () => {
   assert.equal(
     phase({ ...state, warning1Seconds: 0, warning2Seconds: 0 }, 1).color,
     "n",
+  );
+});
+
+test("operator time stays bright until warning boundaries without changing stage colors", () => {
+  const state = {
+    state: "running",
+    warning1Seconds: 180,
+    warning2Seconds: 60,
+    colors: {
+      normal: "#4b5263",
+      warning1: "#f2cc60",
+      warning2: "#ff9854",
+      overtime: "#ff6069",
+    },
+  } as TimerState;
+  assert.equal(operatorTimeColor(state, 180001), "#eef1f7");
+  assert.equal(phase(state, 180001).color, state.colors.normal);
+  assert.equal(operatorTimeColor(state, 180000), state.colors.warning1);
+  assert.equal(operatorTimeColor(state, 60000), state.colors.warning2);
+  assert.equal(operatorTimeColor(state, 0), state.colors.overtime);
+  assert.equal(
+    operatorTimeColor({ ...state, warning1Seconds: 0, warning2Seconds: 0 }, 1),
+    "#eef1f7",
   );
 });
 

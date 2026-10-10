@@ -117,9 +117,6 @@ export function BackupPanel({ timer }: { timer: TimerConnection }) {
     : [];
   return (
     <section className="panel backup-panel">
-      <div className="panel-title">
-        <h2>{t("backup.title")}</h2>
-      </div>
       <p className="hint">{t("backup.hint")}</p>
       <button
         disabled={!timer.connected || loading}

@@ -1,11 +1,17 @@
-import { useState } from "react";
 import type { FormEvent } from "react";
 import { t } from "../../i18n";
 import type { TimerState } from "../../timer/timer";
 import type { TimerConnection } from "../../timer/useTimer";
 
-export function TimerSettings({ timer }: { timer: TimerConnection }) {
-  const [editing, setEditing] = useState<TimerState | null>(null);
+export function TimerSettings({
+  timer,
+  editing,
+  setEditing,
+}: {
+  timer: TimerConnection;
+  editing: TimerState | null;
+  setEditing: (state: TimerState | null) => void;
+}) {
   const state = editing ?? timer.state!;
   const update = (patch: Partial<TimerState>) =>
     setEditing({ ...state, ...patch });
@@ -34,12 +40,6 @@ export function TimerSettings({ timer }: { timer: TimerConnection }) {
   };
   return (
     <section className="panel">
-      <div className="panel-title">
-        <h2>{t("settings.timerDisplay")}</h2>
-        <span className="badge">
-          {editing ? t("common.edit") : t("common.synced")}
-        </span>
-      </div>
       <form onSubmit={(event) => void submit(event)}>
         <fieldset
           disabled={!timer.connected || timer.busy}

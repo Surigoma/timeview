@@ -49,7 +49,7 @@ const resources = {
         close: "閉じる",
         enabled: "有効",
         off: "OFF",
-        edit: "編集中",
+        edit: "未保存",
         synced: "同期済み",
       },
       app: {
@@ -134,6 +134,7 @@ const resources = {
         showAgain: "再表示",
       },
       settings: {
+        inputIntegration: "入力・外部連携",
         bindings: "キー・MIDI割り当て",
         defaults: "既定に戻す",
         bindingHint:
@@ -278,7 +279,7 @@ const resources = {
         close: "Close",
         enabled: "Enabled",
         off: "OFF",
-        edit: "Editing",
+        edit: "Unsaved",
         synced: "Synced",
       },
       app: {
@@ -364,6 +365,7 @@ const resources = {
         showAgain: "Show",
       },
       settings: {
+        inputIntegration: "Input & integrations",
         bindings: "Key & MIDI bindings",
         defaults: "Restore defaults",
         bindingHint:

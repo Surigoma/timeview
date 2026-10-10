@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Stage } from "./components/Stage";
 import { t } from "./i18n";
 import { useRemoteControls } from "./input/useRemoteControls";
@@ -9,19 +9,34 @@ import { TouchScreen } from "./screens/TouchScreen";
 import { useDisplayReport } from "./timer/useDisplayReport";
 import { useTimer } from "./timer/useTimer";
 
+function currentPage() {
+  return location.pathname === "/settings" || location.pathname === "/logs"
+    ? location.pathname
+    : "/";
+}
+
 export default function App() {
   const display = location.pathname === "/display";
   const touch = location.pathname === "/touch";
   const timer = useTimer(display ? "display" : touch ? "touch" : "control");
   useDisplayReport(timer, display);
-  const [tab, setTab] = useState(
-    location.pathname === "/settings"
-      ? "settings"
-      : location.pathname === "/logs"
-        ? "logs"
-        : "control",
-  );
+  const [tab, setTab] = useState(currentPage);
   const remote = useRemoteControls(timer, display);
+  const { setKeypad, setRecord, setMidiRecord } = remote;
+  useEffect(() => {
+    const restore = () => setTab(currentPage());
+    addEventListener("popstate", restore);
+    return () => removeEventListener("popstate", restore);
+  }, []);
+  useEffect(() => {
+    setKeypad(false);
+    setRecord(null);
+    setMidiRecord(null);
+  }, [tab, setKeypad, setRecord, setMidiRecord]);
+  const navigate = (path: string) => {
+    if (location.pathname !== path) history.pushState(null, "", path);
+    setTab(path);
+  };
 
   if (display) {
     return timer.state ? (
@@ -63,50 +78,46 @@ export default function App() {
         </div>
       </header>
       <nav aria-label={t("app.mainNav")}>
-        <button
-          className={tab === "control" ? "selected" : ""}
-          onClick={() => {
-            setTab("control");
-            remote.setKeypad(false);
-            remote.setRecord(null);
-            remote.setMidiRecord(null);
-          }}
-        >
-          {t("app.control")}
-        </button>
-        <button
-          className={tab === "settings" ? "selected" : ""}
-          onClick={() => {
-            setTab("settings");
-            remote.setKeypad(false);
-            remote.setMidiRecord(null);
-          }}
-        >
-          {t("app.settings")}
-        </button>
-        <button
-          className={tab === "logs" ? "selected" : ""}
-          onClick={() => {
-            setTab("logs");
-            remote.setKeypad(false);
-            remote.setRecord(null);
-            remote.setMidiRecord(null);
-          }}
-        >
-          {t("app.logs")}
-        </button>
+        {(
+          [
+            ["/", "app.control"],
+            ["/settings", "app.settings"],
+            ["/logs", "app.logs"],
+          ] as const
+        ).map(([path, label]) => (
+          <a
+            key={path}
+            href={path}
+            className={tab === path ? "selected" : ""}
+            aria-current={tab === path ? "page" : undefined}
+            onClick={(event) => {
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
+              event.preventDefault();
+              navigate(path);
+            }}
+          >
+            {t(label)}
+          </a>
+        ))}
         <span>LOCAL / JSON CONFIG</span>
       </nav>
       <main>
         <div className="page-heading">
           <div>
             <p className="eyebrow">
-              {tab === "control" ? "CONTROL ROOM" : "PREFERENCES"}
+              {tab === "/" ? "CONTROL ROOM" : "PREFERENCES"}
             </p>
             <h1>
-              {tab === "control"
+              {tab === "/"
                 ? t("app.controlHeading")
-                : tab === "settings"
+                : tab === "/settings"
                   ? t("app.settingsHeading")
                   : t("app.logsHeading")}
             </h1>
@@ -129,7 +140,7 @@ export default function App() {
         {!timer.connected && (
           <div className="notice">{t("app.reconnecting")}</div>
         )}
-        {timer.state && tab === "control" && (
+        {timer.state && tab === "/" && (
           <ControlScreen
             timer={timer}
             presets={remote.presets}
@@ -146,26 +157,28 @@ export default function App() {
             lastMidi={remote.lastMidi}
           />
         )}
-        {timer.state && tab === "settings" && (
-          <SettingsScreen
-            timer={timer}
-            presets={remote.presets}
-            bindings={remote.bindings}
-            record={remote.record}
-            setRecord={(action) => {
-              if (action) remote.setKeypad(false);
-              remote.setRecord(action);
-            }}
-            setBindings={remote.setBindings}
-            midiRecord={remote.midiRecord}
-            setMidiRecord={(action) => {
-              remote.setRecord(null);
-              remote.setMidiRecord(action);
-            }}
-            connectMidi={remote.connectMidi}
-          />
+        {timer.state && (
+          <div hidden={tab !== "/settings"}>
+            <SettingsScreen
+              timer={timer}
+              presets={remote.presets}
+              bindings={remote.bindings}
+              record={remote.record}
+              setRecord={(action) => {
+                if (action) remote.setKeypad(false);
+                remote.setRecord(action);
+              }}
+              setBindings={remote.setBindings}
+              midiRecord={remote.midiRecord}
+              setMidiRecord={(action) => {
+                remote.setRecord(null);
+                remote.setMidiRecord(action);
+              }}
+              connectMidi={remote.connectMidi}
+            />
+          </div>
         )}
-        {tab === "logs" && <LogsScreen timer={timer} />}
+        {tab === "/logs" && <LogsScreen timer={timer} />}
       </main>
       <footer>
         TIMEVIEW <span>{t("app.footer")}</span>

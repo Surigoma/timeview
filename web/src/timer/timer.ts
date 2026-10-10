@@ -61,6 +61,14 @@ export function phase(s: TimerState, remaining: number) {
   };
 }
 
+// Operator screens use a bright neutral time until a warning starts. Stage
+// colors remain backgrounds and are independent of operator text readability.
+export function operatorTimeColor(s: TimerState, remaining: number) {
+  if (remaining > Math.max(s.warning1Seconds, s.warning2Seconds, 0) * 1000)
+    return "#eef1f7";
+  return phase(s, remaining).color;
+}
+
 export function elapsedPercent(durationSeconds: number, remainingMs: number) {
   if (durationSeconds <= 0) return 0;
   return Math.max(

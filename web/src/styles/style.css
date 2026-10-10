@@ -178,7 +178,7 @@ nav {
   padding: 0 4vw;
   gap: 26px;
 }
-nav button {
+nav a {
   border: 0;
   background: none;
   border-radius: 0;
@@ -186,11 +186,11 @@ nav button {
   padding: 0 0;
   font-size: 13px;
 }
-nav button:hover {
+nav a:hover {
   background: none;
   color: var(--text);
 }
-nav button.selected {
+nav a.selected {
   color: var(--accent);
   border-bottom: 2px solid var(--accent);
 }
@@ -875,4 +875,41 @@ footer span {
   min-height: 44px;
   display: list-item;
   align-content: center;
+}
+
+[hidden] {
+  display: none !important;
+}
+nav a {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.settings-sections {
+  display: grid;
+  gap: 16px;
+}
+.settings-section {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.settings-section > summary {
+  cursor: pointer;
+  padding: 18px 22px;
+  font-weight: 600;
+  min-height: 52px;
+}
+.settings-section > summary .badge {
+  margin-left: 12px;
+}
+.settings-section > .panel {
+  border: 0;
+  background: transparent;
+}
+.settings-section > .settings-grid {
+  padding: 0 22px 22px;
+}
+.settings-section > .settings-grid > .panel {
+  min-width: 0;
 }
