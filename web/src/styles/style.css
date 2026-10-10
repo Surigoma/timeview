@@ -845,3 +845,16 @@ footer span {
   cursor: pointer;
   padding: 0.5rem 0;
 }
+
+.display-connections {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+.display-connections summary {
+  cursor: pointer;
+}
+.display-connections li {
+  padding: 0.4rem 0;
+  overflow-wrap: anywhere;
+}

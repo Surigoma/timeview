@@ -6,12 +6,14 @@ import { ControlScreen } from "./screens/control/ControlScreen";
 import { LogsScreen } from "./screens/LogsScreen";
 import { SettingsScreen } from "./screens/settings/SettingsScreen";
 import { TouchScreen } from "./screens/TouchScreen";
+import { useDisplayReport } from "./timer/useDisplayReport";
 import { useTimer } from "./timer/useTimer";
 
 export default function App() {
   const timer = useTimer();
   const display = location.pathname === "/display";
   const touch = location.pathname === "/touch";
+  useDisplayReport(timer, display);
   const [tab, setTab] = useState(
     location.pathname === "/settings"
       ? "settings"

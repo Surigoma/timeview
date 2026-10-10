@@ -21,6 +21,7 @@ type Server struct {
 	configPath string
 	receipts   map[string]receipt
 	clients    map[chan struct{}]struct{}
+	displays   map[string]displayReport
 	limits     map[string]*clientLimit
 	now        func() time.Time
 	handler    http.Handler
@@ -65,6 +66,8 @@ func (s *Server) Register(api *gin.RouterGroup) {
 	api.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	api.GET("/timer", s.getTimer)
 	api.GET("/timer/events", s.events)
+	api.GET("/timer/displays", s.getDisplays)
+	api.PUT("/timer/displays/:id", s.reportDisplay)
 	api.POST("/timer/config/validate", s.mutation(false, validateConfig))
 	api.GET("/timer/config", s.getConfig)
 	api.PATCH("/timer/config", s.mutation(true, importConfig))

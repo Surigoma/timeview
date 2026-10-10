@@ -3,6 +3,17 @@ import i18next from "i18next";
 const resources = {
   ja: {
     translation: {
+      displays: {
+        count: "演台接続：{{count}}画面",
+        unknown: "演台接続：確認できません",
+        noResponse: "応答なし：{{count}}画面",
+        name: "演台 {{id}}",
+        online: "応答あり",
+        offline: "応答なし",
+        lastSeen: "最終応答",
+        empty: "演台画面からの応答はまだありません",
+        hint: "演台ページごとに数えます。15秒以上応答がない画面は応答なしと表示し、30分間記録します。映像の出力やモニターの電源状態を保証するものではありません。",
+      },
       backup: {
         title: "設定のバックアップ",
         hint: "持ち時間・警告・表示・定型文・Keypad/MIDI割り当てを保存・復元します。計測状態・暗転・送信中のカンペは含みません。",
@@ -218,6 +229,17 @@ const resources = {
   },
   en: {
     translation: {
+      displays: {
+        count: "Display connections: {{count}} pages",
+        unknown: "Display connections: unavailable",
+        noResponse: "No response: {{count}} pages",
+        name: "Display {{id}}",
+        online: "Responding",
+        offline: "No response",
+        lastSeen: "Last response",
+        empty: "No display page has responded yet",
+        hint: "Each display page is counted separately. No response for 15 seconds marks it offline; records remain for 30 minutes. This does not confirm video output or monitor power.",
+      },
       backup: {
         title: "Settings backup",
         hint: "Save or restore duration, warnings, display, messages and Keypad/MIDI bindings. Live timer, blackout and current message are excluded.",

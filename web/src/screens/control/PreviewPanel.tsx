@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DisplayConnections } from "./DisplayConnections";
 import { Stage } from "../../components/Stage";
 import { t } from "../../i18n";
 import type { TimerConnection } from "../../timer/useTimer";
@@ -24,6 +25,7 @@ export function PreviewPanel({ timer }: { timer: TimerConnection }) {
           ? t("control.previewBlackout")
           : t("control.previewLive")}
       </p>
+      <DisplayConnections timer={timer} />
       {overflow && <p className="warning">{t("control.overflow")}</p>}
     </section>
   );
