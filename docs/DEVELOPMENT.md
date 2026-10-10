@@ -73,14 +73,18 @@ curl:
 curl http://127.0.0.1:8080/api/v1/timer
 curl -X PUT http://127.0.0.1:8080/api/v1/timer/blackout -H 'Content-Type: application/json' -d '{"enabled":false}'
 curl -N http://127.0.0.1:8080/api/v1/timer/events
+# 演台一覧と操作ログも同じ接続で受け取る
+curl -N 'http://127.0.0.1:8080/api/v1/timer/events?topics=displays,logs'
 ```
 
 設定変更はGET応答のETagを`If-Match`で送る。加減算は`Idempotency-Key`が必須で、再送時は同じキーと本文を使う。任意の`X-Timeview-Instance`へ取得済みの`instanceId`を付けると、サーバー再起動前の操作を409で拒否できる。完全な契約は[OpenAPI](openapi.json)を参照。
 
-ブラウザ操作限定が有効な間、外部クライアントの変更要求は403になる。解除はTimeViewの設定画面から行う。操作画面が使えない場合はTimeViewを終了し、設定JSONの`browserOnly`を`false`へ変更して再起動する。
+ブラウザ操作限定が有効な間、外部クライアントの変更要求は403になる。解除はTimeViewの設定画面から行う。操作画面が使えない場合はTimeViewを終了し、設定JSONの`timer.browserOnly`を`false`へ変更して再起動する。
 
 ## 関連資料
 
 - [仕様書](SPECIFICATION.md)
+- [HTTP API・SSE仕様](specification/API.md)
+- [運用ガイド](OPERATIONS.md)
 - [動作確認結果](VALIDATION.md)
 - [依存ライブラリの選定](DEPENDENCIES.md)
