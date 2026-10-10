@@ -870,6 +870,51 @@ footer span {
 .display-name-form {
   margin-top: 12px;
 }
+.display-row-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.display-row-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  flex: 1;
+  min-width: 0;
+}
+.display-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.display-icon {
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  flex: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.display-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.display-remove:hover {
+  color: #ff6069;
+}
+.touch-screen .display-icon {
+  min-height: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 9px;
+  font-size: inherit;
+}
 
 .touch-connections {
   margin-top: 24px;

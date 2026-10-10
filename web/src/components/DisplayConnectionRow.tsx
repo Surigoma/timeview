@@ -22,9 +22,44 @@ export function DisplayConnectionRow({
   const disabled = !timer.connected || timer.busy;
   return (
     <li>
-      <strong>{label}</strong>
-      {" · "}
-      {t(display.online ? "displays.online" : "displays.offline")}
+      <div className="display-row-header">
+        <div className="display-row-identity">
+          <strong>{label}</strong>
+          {draft === null && (
+            <button
+              ref={editButton}
+              className="display-icon"
+              disabled={disabled}
+              title={t("displays.editName")}
+              aria-label={t("displays.editNameLabel", { name: label })}
+              onClick={() => setDraft(display.name ?? "")}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z" />
+              </svg>
+            </button>
+          )}
+          <span className="display-status">
+            {t(display.online ? "displays.online" : "displays.offline")}
+          </span>
+        </div>
+        {draft === null && !display.online && (
+          <button
+            className="display-icon display-remove"
+            disabled={disabled}
+            title={t("displays.remove")}
+            aria-label={t("displays.removeLabel", { name: label })}
+            onClick={() => {
+              if (confirm(t("displays.removeConfirm", { name: label })))
+                void timer.send(`/displays/${display.id}`, undefined, "DELETE");
+            }}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+            </svg>
+          </button>
+        )}
+      </div>
       <div className="hint">
         {t("displays.lastSeen")}{" "}
         <time dateTime={new Date(display.lastSeenMs).toISOString()}>
@@ -74,36 +109,7 @@ export function DisplayConnectionRow({
             </button>
           </div>
         </form>
-      ) : (
-        <div className="display-row-actions">
-          <button
-            ref={editButton}
-            className="small"
-            disabled={disabled}
-            aria-label={t("displays.editNameLabel", { name: label })}
-            onClick={() => setDraft(display.name ?? "")}
-          >
-            {t("displays.editName")}
-          </button>
-          {!display.online && (
-            <button
-              className="small"
-              disabled={disabled}
-              aria-label={t("displays.removeLabel", { name: label })}
-              onClick={() => {
-                if (confirm(t("displays.removeConfirm", { name: label })))
-                  void timer.send(
-                    `/displays/${display.id}`,
-                    undefined,
-                    "DELETE",
-                  );
-              }}
-            >
-              {t("displays.remove")}
-            </button>
-          )}
-        </div>
-      )}
+      ) : null}
     </li>
   );
 }
