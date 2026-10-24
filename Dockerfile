@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS web-build
+FROM node:26.12.0-alpine3.24@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS web-build
 # npm 12.2.1 still bundles vulnerable undici/ip-address versions. Patch only
 # those build-time packages until npm ships their fixes (CVE-2026-109869,
 # CVE-2026-109924 and CVE-2026-111997).
