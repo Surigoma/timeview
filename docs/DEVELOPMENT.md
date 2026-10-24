@@ -45,15 +45,15 @@ task docker:up
 
 ## GitHub Actionsとリリース
 
-`.github/workflows/ci.yml`はpushとpull requestでフロントエンドのlint・テスト・ビルド、Goのvet・テスト・カバレッジ確認に加え、Windows amd64、macOS amd64／arm64、Linux amd64／arm64でUIなしリモコンをネイティブビルドする。`v`で始まるタグでは、各ランナーのアーカイブとSHA-256チェックサムをGitHub Releaseへ追加する。リリースにはリポジトリ既定の`GITHUB_TOKEN`だけを使い、追加のsecretは不要。
+`.github/workflows/ci.yml`はpushとpull requestでフロントエンドのlint・テスト・ビルド、Goのvet・テスト・カバレッジ確認、Dockerビルドに加え、Windows amd64、macOS amd64／arm64、Linux amd64／arm64のネイティブビルドを行う。
 
-タグ作成前に変更をコミットし、次を実行する。
+リリースはRelease Pleaseがv0.1.0を起点に管理する。mainへ入れる変更にはConventional Commit形式のタイトルを付け、squash mergeする。`fix: ...`はpatch、`feat: ...`は1.0未満ではminor更新になる。
 
-```sh
-task release:tag VERSION=1.0.0
-```
+1. mainへの変更からRelease workflowがバージョン・CHANGELOGを更新するリリースPRを作成する。
+2. リリースPRを検証してマージする。`GITHUB_TOKEN`で作ったPRのCIが自動開始しない場合は、ActionsのCIからRun workflowを選び、リリースPRのブランチを指定する。ローカルでは`task release:check`を使える。
+3. Release PleaseがタグとGitHub Releaseを作成し、同じworkflowから既存CIを呼び出す。対象タグでテスト・Dockerビルド・5種類のネイティブビルドを行い、各アーカイブと`SHA256SUMS.txt`を既存Releaseへ添付する。
 
-このタスクは追跡中ファイルの未コミット差分がないことを確認し、lintとテストに成功した後、注釈付き`v1.0.0`タグを作成して`origin`へpushする。タグやGitHub Releaseを作り直す処理は行わない。
+`GITHUB_TOKEN`が作ったタグでは別workflowが自動起動しないため、`workflow_call`でCIを再利用する。追加secretやPATは不要。Settings → Actions → GeneralでGitHub ActionsによるPR作成を許可する。手動のタグ作成・pushでリリースしない。
 
 ## API利用例
 

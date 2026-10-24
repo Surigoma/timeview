@@ -83,14 +83,8 @@ tasks:
     desc: Build release executables for this OS/CPU (CI builds all 5 targets)
     cmds:
       - task: build
-  release:tag:
-    desc: Validate, create vVERSION tag and push it to trigger a GitHub release
-    requires:
-      vars: [VERSION]
+  release:check:
+    desc: Validate changes before merging a Release Please PR
     cmds:
-      - git diff --exit-code
-      - git diff --cached --exit-code
       - task lint
       - task test
-      - git tag --annotate "v{{.VERSION}}" --message "v{{.VERSION}}"
-      - git push origin "v{{.VERSION}}"
