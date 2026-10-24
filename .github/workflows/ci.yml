@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # Feature-branch pushes already run via pull_request; keep main for direct pushes
+  # (no branch protection). Release builds use workflow_call from release.yml.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
   workflow_call:
@@ -11,6 +14,11 @@ on:
         type: string
         required: false
         default: ''
+
+# Cancel superseded PR runs; do not cancel release workflow_call or main pushes mid-flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.release_tag || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
