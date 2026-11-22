@@ -31,7 +31,7 @@ tasks:
       - gofmt -w main.go internal cmd web/embed.go
       - '{{.NPM}} --prefix web run fmt'
   lint:
-    desc: Check Go, TypeScript and ESLint
+    desc: Check Go, TypeScript and oxlint
     env:
       CGO_ENABLED: '0'
     cmds:
